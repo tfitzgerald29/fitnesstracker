@@ -1,0 +1,25 @@
+# Data files
+garminfitfiles/
+processedfiles/
+mergedfiles/
+output/
+weighttraining_data/
+
+# Notebooks
+*.ipynb
+
+# Main script in root
+main.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+env/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
