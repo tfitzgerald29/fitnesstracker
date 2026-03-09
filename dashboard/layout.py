@@ -5,7 +5,11 @@ from .config import COLORS
 
 def create_layout():
     return html.Div(
-        style={"backgroundColor": COLORS["bg"], "minHeight": "100vh", "color": COLORS["text"]},
+        style={
+            "backgroundColor": COLORS["bg"],
+            "minHeight": "100vh",
+            "color": COLORS["text"],
+        },
         children=[
             html.Div(
                 style={
@@ -19,29 +23,124 @@ def create_layout():
                 children=[
                     html.H1(
                         "Tyler's Activities",
-                        style={"fontSize": "1.4rem", "fontWeight": "600", "color": "#fff", "margin": 0},
+                        style={
+                            "fontSize": "1.4rem",
+                            "fontWeight": "600",
+                            "color": "#fff",
+                            "margin": 0,
+                        },
                     ),
                     dcc.Tabs(
                         id="tabs",
-                        value="sports",
+                        value="calendar",
                         children=[
                             dcc.Tab(
-                                label="Sport Summary", value="sports",
-                                style={"padding": "6px 16px", "lineHeight": "28px"},
-                                selected_style={"padding": "6px 16px", "lineHeight": "28px", "borderTop": f"2px solid {COLORS['accent']}"},
+                                label="Calendar",
+                                value="calendar",
+                                style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                },
+                                selected_style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "borderTop": f"2px solid {COLORS['accent']}",
+                                },
                             ),
                             dcc.Tab(
-                                label="Cycling", value="cycling",
-                                style={"padding": "6px 16px", "lineHeight": "28px"},
-                                selected_style={"padding": "6px 16px", "lineHeight": "28px", "borderTop": f"2px solid {COLORS['accent']}"},
+                                label="Sport Summary",
+                                value="sports",
+                                style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                },
+                                selected_style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "borderTop": f"2px solid {COLORS['accent']}",
+                                },
                             ),
                             dcc.Tab(
-                                label="Weight Training", value="weights",
-                                style={"padding": "6px 16px", "lineHeight": "28px"},
-                                selected_style={"padding": "6px 16px", "lineHeight": "28px", "borderTop": f"2px solid {COLORS['accent']}"},
+                                label="Cycling",
+                                value="cycling",
+                                style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                },
+                                selected_style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "borderTop": f"2px solid {COLORS['accent']}",
+                                },
+                            ),
+                            dcc.Tab(
+                                label="Weight Training",
+                                value="weights",
+                                style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                },
+                                selected_style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "borderTop": f"2px solid {COLORS['accent']}",
+                                },
+                            ),
+                            dcc.Tab(
+                                label="Rock Climbing",
+                                value="climbing",
+                                style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                },
+                                selected_style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "borderTop": f"2px solid {COLORS['accent']}",
+                                },
                             ),
                         ],
-                        style={"height": "40px", "display": "flex", "alignItems": "center"},
+                        style={
+                            "height": "40px",
+                            "display": "flex",
+                            "alignItems": "center",
+                        },
                         colors={
                             "border": "transparent",
                             "primary": COLORS["accent"],

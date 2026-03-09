@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import zipfile
@@ -8,42 +9,33 @@ from garmin_fit_sdk import Decoder, Stream
 
 
 class FitFileProcessor:
-    """
-    A class to handle FIT file processing pipeline including unzipping,
-    processing, and storing data in Parquet format.
-    """
+    _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DEFAULT_SOURCE_FOLDER = os.environ.get("FIT_SOURCE_FOLDER", os.path.expanduser("~/Downloads"))
+    DEFAULT_PROCESSED_PATH = os.path.join(_BASE_DIR, "processedfiles")
+    DEFAULT_MERGED_PATH = os.path.join(_BASE_DIR, "mergedfiles")
 
     def __init__(self, source_folder=None, processedpath=None, mergedfiles_path=None):
-        """
-        Initialize the FIT file processor.
-
-        Args:
-            source_folder: Path to folder containing .zip files with FIT files
-            processedpath: Path where extracted .fit files will be stored
-            mergedfiles_path: Path where processed parquet files will be saved
-        """
-        self.source_folder = source_folder
-        self.processedpath = processedpath
-        self.mergedfiles_path = mergedfiles_path
+        self.source_folder = source_folder or self.DEFAULT_SOURCE_FOLDER
+        self.processedpath = processedpath or self.DEFAULT_PROCESSED_PATH
+        self.mergedfiles_path = mergedfiles_path or self.DEFAULT_MERGED_PATH
         self.inclusion_list = [
             "file_id_mesgs",
             "activity_mesgs",
             "session_mesgs",
             "record_mesgs",
-            # "set_mesgs",
+            "split_mesgs",  # rock climbing
+            "split_summary_mesgs",  # rocking climbing
         ]
+        expected_cols_path = Path(__file__).parent / "expected_columns.json"
+        if expected_cols_path.exists():
+            with open(expected_cols_path) as f:
+                self.expected_columns = json.load(f)
+        else:
+            self.expected_columns = {}
 
     def unzip_fit_files(self):
-        """
-        Unzip all .zip files containing .fit files from source folder to processed folder.
-        Returns list of newly extracted .fit files.
-        """
-        print(f"Checking for zip files in: {self.source_folder}")
-        print(f"Extracting to: {self.processedpath}")
-
         # Ensure the processed path exists
         os.makedirs(self.processedpath, exist_ok=True)
-
         new_fit_files = []
 
         with os.scandir(self.source_folder) as entries:
@@ -79,10 +71,6 @@ class FitFileProcessor:
         return new_fit_files
 
     def get_processed_files(self):
-        """
-        Get already processed filenames per parquet file.
-        Returns a dict mapping msg_type to a set of processed source filenames.
-        """
         processed_files = {msg_type: set() for msg_type in self.inclusion_list}
 
         print(f"Checking for already processed files in: {self.mergedfiles_path}")
@@ -128,12 +116,18 @@ class FitFileProcessor:
             if existing_df[col].dtype != new_df[col].dtype:
                 # Prefer the non-Null type; if both are non-Null, existing wins
                 if new_df[col].dtype == pl.Null:
-                    new_df = new_df.with_columns(pl.lit(None).cast(existing_df[col].dtype).alias(col))
+                    new_df = new_df.with_columns(
+                        pl.lit(None).cast(existing_df[col].dtype).alias(col)
+                    )
                 elif existing_df[col].dtype == pl.Null:
-                    existing_df = existing_df.with_columns(pl.lit(None).cast(new_df[col].dtype).alias(col))
+                    existing_df = existing_df.with_columns(
+                        pl.lit(None).cast(new_df[col].dtype).alias(col)
+                    )
                 else:
                     try:
-                        new_df = new_df.with_columns(pl.col(col).cast(existing_df[col].dtype))
+                        new_df = new_df.with_columns(
+                            pl.col(col).cast(existing_df[col].dtype)
+                        )
                     except Exception:
                         pass  # leave as-is if cast fails, concat will use supertype
 
@@ -175,11 +169,16 @@ class FitFileProcessor:
                         continue
                     if msg_type in messages:
                         for msg in messages[msg_type]:
-                            # Filter to only include string keys
+                            # Filter to only include string keys, drop
+                            # list values (e.g. power_phase arrays), and
+                            # cast int values to float to avoid type
+                            # conflicts (FIT SDK returns int or float
+                            # for the same field across activities)
                             filtered_msg = {
-                                key: value
+                                key: float(value) if isinstance(value, int) else value
                                 for key, value in msg.items()
                                 if isinstance(key, str)
+                                and not isinstance(value, (list, dict))
                             }
                             filtered_msg["source_file"] = filename
                             data_by_type[msg_type].append(filtered_msg)
@@ -204,7 +203,17 @@ class FitFileProcessor:
 
                 if data:
                     try:
-                        new_df = pl.DataFrame(data)
+                        # Pad each row with expected columns before creating the
+                        # DataFrame. Polars infers the schema from the first row,
+                        # so columns that only appear in later rows (e.g. GPS
+                        # fields on outdoor rides) would be silently dropped.
+                        if msg_type in self.expected_columns:
+                            expected = self.expected_columns[msg_type]
+                            for row in data:
+                                for col in expected:
+                                    row.setdefault(col, None)
+
+                        new_df = pl.DataFrame(data, infer_schema_length=None)
 
                         if os.path.exists(parquet_path):
                             try:
@@ -215,17 +224,16 @@ class FitFileProcessor:
                                 combined_df = pl.concat(
                                     [existing_df, new_df], how="diagonal_relaxed"
                                 )
+                                # Deduplicate activities exported from multiple sources
+                                dedup_cols = [c for c in combined_df.columns if c != "source_file"]
+                                combined_df = combined_df.unique(subset=dedup_cols)
                                 combined_df.write_parquet(parquet_path)
                                 print(
                                     f"✓ {msg_type}.parquet: Added {new_df.shape[0]} rows (total: {combined_df.shape[0]})"
                                 )
                             except Exception as e:
-                                print(
-                                    f"  ✗ Failed to merge {msg_type}: {e}"
-                                )
-                                failed_files = (
-                                    new_df["source_file"].unique().to_list()
-                                )
+                                print(f"  ✗ Failed to merge {msg_type}: {e}")
+                                failed_files = new_df["source_file"].unique().to_list()
                                 schema_mismatch_files.extend(
                                     [
                                         {
@@ -237,7 +245,9 @@ class FitFileProcessor:
                                     ]
                                 )
                         else:
-                            # Create new file
+                            # Create new file, deduplicating activities from multiple sources
+                            dedup_cols = [c for c in new_df.columns if c != "source_file"]
+                            new_df = new_df.unique(subset=dedup_cols)
                             new_df.write_parquet(parquet_path)
                             print(
                                 f"✓ {msg_type}.parquet: Created with {new_df.shape[0]} rows"
@@ -311,7 +321,6 @@ class FitFileProcessor:
         )
         print(f"Files with schema mismatches: {len(summary['schema_mismatch_files'])}")
         print(f"Files with processing errors: {len(summary['processing_error_files'])}")
-
         return summary
 
     def rebuild(self):

@@ -1,0 +1,17 @@
+[project]
+name = "cyclingdashboard-v2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dash[cloud]>=4.0.0",
+    "garmin-fit-sdk>=21.195.0",
+    "ipykernel>=7.2.0",
+    "pandas>=3.0.1",
+    "plotly>=6.6.0",
+    "polars>=1.38.1",
+    "pyarrow>=23.0.1",
+    "statsmodels>=0.14.6",
+    "tzdata>=2025.1",
+]

@@ -1,6 +1,10 @@
-MERGED_PATH = "/Users/tylerfitzgerald/Documents/cyclingdashboard_v2/mergedfiles"
-WT_DATA_FILE = "/Users/tylerfitzgerald/Documents/cyclingdashboard_v2/weighttraining_data/weighttraining_data.json"
-WT_DRAFT_FILE = "/Users/tylerfitzgerald/Documents/cyclingdashboard_v2/weighttraining_data/draft_workout.json"
+import os
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MERGED_PATH = os.path.join(_BASE_DIR, "mergedfiles")
+WT_DATA_FILE = os.path.join(_BASE_DIR, "weighttraining_data", "weighttraining_data.json")
+WT_DRAFT_FILE = os.path.join(_BASE_DIR, "weighttraining_data", "draft_workout.json")
+BODY_WEIGHT_LB = 133
 
 COLORS = {
     "bg": "#0f1117",

@@ -1,9 +1,8 @@
 # Data files
 garminfitfiles/
 processedfiles/
-mergedfiles/
 output/
-weighttraining_data/
+mergedfiles/record_mesgs.parquet
 
 # Notebooks
 *.ipynb
@@ -23,3 +22,8 @@ env/
 
 # IDE
 .vscode/
+
+# Tool config
+.python-version
+pyrightconfig.json
+uv.lock

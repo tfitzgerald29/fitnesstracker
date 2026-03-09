@@ -1,0 +1,7 @@
+dash
+plotly
+polars
+gunicorn
+garmin-fit-sdk
+numpy
+tzdata

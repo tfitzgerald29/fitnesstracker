@@ -8,5 +8,7 @@ app = dash.Dash(__name__, suppress_callback_exceptions=True)
 app.title = "Tyler's Activities"
 app.layout = create_layout()
 
+server = app.server  # required for Plotly Cloud / gunicorn
+
 if __name__ == "__main__":
     app.run(debug=True, port=8050)

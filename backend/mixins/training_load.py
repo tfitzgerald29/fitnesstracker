@@ -1,223 +1,11 @@
-import os
-from datetime import timedelta
+from datetime import date, timedelta
 
 import plotly.graph_objects as go
 import polars as pl
 
-from .FitFileProcessor import FitFileProcessor
 
-
-class CyclingProcessor(FitFileProcessor):
-    """Process cycling activities from session_mesgs for summary and KPI calculations."""
-
-    DEFAULT_SOURCE_FOLDER = "/Users/Tylerfitzgerald/Downloads/"
-    DEFAULT_PROCESSED_PATH = "/Users/tylerfitzgerald/Documents/cyclingdashboard_v2/processedfiles"
-    DEFAULT_MERGED_PATH = "/Users/tylerfitzgerald/Documents/cyclingdashboard_v2/mergedfiles"
-
-    def __init__(self, source_folder=None, processedpath=None, mergedfiles_path=None):
-        super().__init__(
-            source_folder or self.DEFAULT_SOURCE_FOLDER,
-            processedpath or self.DEFAULT_PROCESSED_PATH,
-            mergedfiles_path or self.DEFAULT_MERGED_PATH,
-        )
-        self.run()
-        self.cycling = self._load_cycling_sessions()
-
-    def _load_cycling_sessions(self) -> pl.DataFrame:
-        """Load session_mesgs parquet and filter to cycling activities."""
-        parquet_path = os.path.join(self.mergedfiles_path, "session_mesgs.parquet")
-        if os.path.exists(parquet_path):
-            session_mesgs = pl.read_parquet(parquet_path)
-            return session_mesgs.filter(pl.col("sport") == "cycling")
-        return pl.DataFrame()
-
-    def list_rides(self) -> list[dict]:
-        """Return a list of rides with label and timestamp for dropdown selection."""
-        df = self.cycling.clone()
-        if df.is_empty():
-            return []
-
-        ts_col = "timestamp"
-        if df[ts_col].dtype.time_zone is None:
-            df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
-        df = df.with_columns(
-            pl.col(ts_col).dt.convert_time_zone("America/Denver")
-        )
-
-        df = df.with_columns(
-            (pl.col("total_distance") / 1609.344).round(1).alias("miles"),
-            (pl.col("total_timer_time") / 3600).round(1).alias("hours"),
-        ).sort(ts_col, descending=True)
-
-        rides = []
-        for r in df.to_dicts():
-            dt = r[ts_col]
-            label = f"{dt.strftime('%Y-%m-%d')} — {r['miles']} mi, {r['hours']} hr"
-            rides.append({"label": label, "value": dt.isoformat()})
-        return rides
-
-    def get_ride_summary(self, ride_timestamp: str) -> dict | None:
-        """Return summary stats for a single ride identified by its timestamp."""
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-
-        dt = datetime.fromisoformat(ride_timestamp).astimezone(ZoneInfo("America/Denver"))
-
-        df = self.cycling.clone()
-        ts_col = "timestamp"
-        if df[ts_col].dtype.time_zone is None:
-            df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
-        df = df.with_columns(
-            pl.col(ts_col).dt.convert_time_zone("America/Denver")
-        )
-
-        ride = df.filter(pl.col(ts_col) == pl.lit(dt).cast(pl.Datetime("us", "America/Denver")))
-        if ride.is_empty():
-            return None
-
-        r = ride.to_dicts()[0]
-        return {
-            "date": r[ts_col].strftime("%Y-%m-%d %I:%M %p"),
-            "distance_mi": round(r["total_distance"] / 1609.344, 1),
-            "duration_hr": round(r["total_timer_time"] / 3600, 2),
-            "total_timer_time_s": r["total_timer_time"],
-            "elapsed_hr": round(r["total_elapsed_time"] / 3600, 2),
-            "avg_power": r.get("avg_power"),
-            "normalized_power": r.get("normalized_power"),
-            "avg_speed_mph": round(r["enhanced_avg_speed"] * 2.23694, 1) if r.get("enhanced_avg_speed") else None,
-            "avg_cadence": r.get("avg_cadence"),
-            "avg_hr": r.get("avg_heart_rate"),
-            "max_hr": r.get("max_heart_rate"),
-            "total_ascent_ft": round(r["total_ascent"] * 3.28084) if r.get("total_ascent") else None,
-            "total_descent_ft": round(r["total_descent"] * 3.28084) if r.get("total_descent") else None,
-            "calories": r.get("total_calories"),
-            "tss": round(r["training_stress_score"]) if r.get("training_stress_score") else None,
-            "intensity_factor": r.get("intensity_factor"),
-            "ftp": r.get("threshold_power"),
-            "work_kj": round(r["total_work"] / 1000) if r.get("total_work") else None,
-            "left_balance": round(100 - (r["left_right_balance"] & 0x3FFF) / 100, 1) if r.get("left_right_balance") else None,
-            "right_balance": round((r["left_right_balance"] & 0x3FFF) / 100, 1) if r.get("left_right_balance") else None,
-            "source_file": r.get("source_file"),
-        }
-
-    def _load_ride_power(self, source_file: str) -> list[int] | None:
-        """Load and clean power data for a single ride from record_mesgs."""
-        records_path = os.path.join(self.mergedfiles_path, "record_mesgs.parquet")
-        if not os.path.exists(records_path):
-            return None
-
-        records = pl.read_parquet(records_path).filter(
-            pl.col("source_file") == source_file
-        ).sort("timestamp")
-
-        if records.is_empty() or "power" not in records.columns:
-            return None
-        if records["power"].drop_nulls().len() == 0:
-            return None
-
-        return records.with_columns(
-            pl.col("power")
-            .fill_null((pl.col("power").shift(1) + pl.col("power").shift(2)) / 2)
-            .fill_null(0)
-        )["power"].cast(pl.Int64).to_list()
-
-    @staticmethod
-    def _best_avg_power(power: list[int], window: int) -> int | None:
-        """Compute best average power for a given window size using sliding window."""
-        if len(power) < window:
-            return None
-        running_sum = sum(power[:window])
-        best = running_sum
-        for i in range(window, len(power)):
-            running_sum += power[i] - power[i - window]
-            if running_sum > best:
-                best = running_sum
-        return round(best / window)
-
-    # Standard durations for peak power cards
-    PEAK_DURATIONS = [
-        (5, "5s"), (30, "30s"), (60, "1min"), (300, "5min"),
-        (600, "10min"), (1200, "20min"), (1800, "30min"), (3600, "60min"),
-        (5400, "90min"), (7200, "120min"),
-    ]
-
-    # Finer durations for power curve chart
-    CURVE_DURATIONS = [
-        1, 2, 3, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300,
-        360, 420, 480, 540, 600, 720, 900, 1200, 1500, 1800, 2400, 3600, 5400, 7200,
-    ]
-
-    def get_peak_powers(self, source_file: str) -> list[dict]:
-        """Compute best average power for standard durations from record_mesgs."""
-        power = self._load_ride_power(source_file)
-        if not power:
-            return []
-
-        results = []
-        for window, label in self.PEAK_DURATIONS:
-            if window > len(power):
-                results.append({"duration": label, "watts": "N/A"})
-            else:
-                watts = self._best_avg_power(power, window)
-                results.append({"duration": label, "watts": watts if watts is not None else "N/A"})
-        return results
-
-    def get_power_curve(self, source_file: str) -> dict:
-        """Compute full power curve for a single ride. Returns {durations: [], watts: []}."""
-        power = self._load_ride_power(source_file)
-        if not power:
-            return {"durations": [], "watts": []}
-
-        durations = []
-        watts = []
-        for d in self.CURVE_DURATIONS:
-            w = self._best_avg_power(power, d)
-            if w is not None:
-                durations.append(d)
-                watts.append(w)
-        return {"durations": durations, "watts": watts}
-
-    def get_best_power_curve(self, period_months: int | None = None) -> dict:
-        """Compute best-of power curve across all rides in a date range.
-
-        Args:
-            period_months: Number of months to look back (None = all time)
-        Returns:
-            {durations: [], watts: []}
-        """
-        from datetime import date
-
-        df = self.cycling.clone()
-        if df.is_empty():
-            return {"durations": [], "watts": []}
-
-        ts_col = "timestamp"
-        if df[ts_col].dtype.time_zone is None:
-            df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
-
-        if period_months is not None:
-            cutoff = date.today() - timedelta(days=period_months * 30)
-            df = df.filter(pl.col(ts_col).dt.date() >= cutoff)
-
-        source_files = df["source_file"].unique().to_list()
-        if not source_files:
-            return {"durations": [], "watts": []}
-
-        # Compute best across all rides for each duration
-        best_by_duration = {}
-        for sf in source_files:
-            power = self._load_ride_power(sf)
-            if not power:
-                continue
-            for d in self.CURVE_DURATIONS:
-                w = self._best_avg_power(power, d)
-                if w is not None:
-                    if d not in best_by_duration or w > best_by_duration[d]:
-                        best_by_duration[d] = w
-
-        durations = sorted(best_by_duration.keys())
-        watts = [best_by_duration[d] for d in durations]
-        return {"durations": durations, "watts": watts}
+class TrainingLoadMixin:
+    """Cycling summary, daily TSS, CTL/ATL/TSB, forecast, and training load plot."""
 
     def summarize_cycling(self, group_by="year") -> pl.DataFrame:
         """Summarize cycling rides by year, month, or week with rides, miles, time, and TSS."""
@@ -269,7 +57,6 @@ class CyclingProcessor(FitFileProcessor):
         return summary.select(select_cols).sort(group_cols)
 
     def compute_daily_tss(self) -> pl.DataFrame:
-        
         df = self.cycling.with_columns(
             pl.col("timestamp")
             .dt.convert_time_zone("America/Denver")
@@ -292,8 +79,6 @@ class CyclingProcessor(FitFileProcessor):
         daily_tss = df.group_by("date").agg(pl.col("tss").sum()).sort("date")
 
         # Expand to full date range + 60-day projection, filling gaps with 0
-        from datetime import date
-
         min_date = daily_tss["date"].min()
         today = date.today()
         projection_end = today + timedelta(days=60)
@@ -310,7 +95,6 @@ class CyclingProcessor(FitFileProcessor):
         return daily_tss
 
     def compute_ctl_atl(self, ctl_days: int = 42, atl_days: int = 7) -> pl.DataFrame:
-        
         daily_tss = self.compute_daily_tss()
 
         ctl_decay = 2.0 / (ctl_days + 1)
@@ -338,7 +122,6 @@ class CyclingProcessor(FitFileProcessor):
     def compute_ctl_atl_forecast(
         self, ctl_days: int = 42, atl_days: int = 7, lookback_days: int = 42
     ) -> pl.DataFrame:
-        
         daily_tss = self.compute_daily_tss()
 
         # Calculate average daily TSS from the last N actual (non-projection) days
@@ -392,8 +175,6 @@ class CyclingProcessor(FitFileProcessor):
 
         if start_date is not None:
             if isinstance(start_date, str):
-                from datetime import date
-
                 start_date = date.fromisoformat(start_date)
             df = df.filter(pl.col("date") >= start_date)
             if include_forecast:
