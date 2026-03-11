@@ -27,3 +27,4 @@ env/
 .python-version
 pyrightconfig.json
 uv.lock
+plotly-cloud.toml
