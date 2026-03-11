@@ -1,6 +1,4 @@
 import os
-import threading
-import webbrowser
 
 import dash
 
@@ -21,6 +19,4 @@ app.layout = create_layout()
 server = app.server  # required for Plotly Cloud / gunicorn
 
 if __name__ == "__main__":
-    if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        threading.Timer(1.5, webbrowser.open, args=["http://localhost:8050"]).start()
-    app.run(debug=True, port=8050)
+    app.run(debug=True, port=8051)
