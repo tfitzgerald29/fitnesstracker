@@ -111,9 +111,7 @@ class CyclingProcessor(
 
     def _update_bootstrap_cache(self):
         """Refresh the CP covariate bootstrap cache if data has changed."""
-        boot_path = os.path.join(
-            self.mergedfiles_path, "cp_covariate_bootstrap.json"
-        )
+        boot_path = os.path.join(self.mergedfiles_path, "cp_covariate_bootstrap.json")
         curves_path = os.path.join(self.mergedfiles_path, "power_curves.parquet")
         # Re-run bootstrap if cache is missing or older than power curves
         if os.path.exists(curves_path) and (
@@ -176,27 +174,31 @@ class CyclingProcessor(
             "duration_hr": round(r["total_timer_time"] / 3600, 2),
             "total_timer_time_s": r["total_timer_time"],
             "elapsed_hr": round(r["total_elapsed_time"] / 3600, 2),
-            "avg_power": r.get("avg_power"),
-            "normalized_power": r.get("normalized_power"),
+            "avg_power": int(r.get("avg_power")),
+            "normalized_power": int(r.get("normalized_power")),
             "avg_speed_mph": round(r["enhanced_avg_speed"] * 2.23694, 1)
             if r.get("enhanced_avg_speed")
             else None,
-            "avg_cadence": r.get("avg_cadence"),
+            "avg_cadence": int(r.get("avg_cadence")),
             "avg_hr": r.get("avg_heart_rate"),
             "max_hr": r.get("max_heart_rate"),
-            "total_ascent_ft": round(r["total_ascent"] * 3.28084)
+            "total_ascent_ft": f"{round(r['total_ascent'] * 3.28084):,.0f}"
             if r.get("total_ascent")
             else None,
             "total_descent_ft": round(r["total_descent"] * 3.28084)
             if r.get("total_descent")
             else None,
-            "calories": r.get("total_calories"),
+            "calories": f"{r['total_calories']:,.0f}"
+            if r.get("total_calories")
+            else None,
             "tss": round(r["training_stress_score"])
             if r.get("training_stress_score")
             else None,
             "intensity_factor": r.get("intensity_factor"),
-            "ftp": r.get("threshold_power"),
-            "work_kj": round(r["total_work"] / 1000) if r.get("total_work") else None,
+            "ftp": int(r.get("threshold_power")),
+            "work_kj": f"{round(r['total_work'] / 1000, 0):,.0f}"
+            if r.get("total_work")
+            else None,
             "left_balance": round(
                 100 - (int(r["left_right_balance"]) & 0x3FFF) / 100, 1
             )
