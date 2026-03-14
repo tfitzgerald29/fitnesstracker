@@ -1,6 +1,6 @@
 # Tyler's Activities
 
-A Dash-based personal activity dashboard that ingests Garmin FIT files to track cycling, climbing, running, weight lifting, and other sports. Includes advanced cycling power analysis, critical power modeling with bootstrap inference, training load tracking, and a custom weight lifting form for logging exercises, sets, reps, and weight to track gym progress over time.
+A Dash-based personal activity dashboard that ingests Garmin FIT files to track cycling, climbing, running, weight lifting, and other sports. Includes cycling power analysis, critical power modeling with bootstrap inference, training load tracking, and a custom weight lifting form for logging exercises, sets, reps, and weight to track gym progress over time.
 
 ## Quick Start
 
@@ -26,6 +26,7 @@ backend/
   cycling_processor.py      # Cycling-specific analysis (inherits all mixins these are for cycling)
   SportSummarizer.py        # Multi-sport summaries (cycling, climbing, running, etc.)
   weighttraining_entry.py   # Weight lifting JSON logger & form backend
+  skiing_processor.py       #process skiing files
   mixins/
     cp_model.py             # Critical power estimation & covariate bootstrap
     power_analysis.py       # Peak powers, zones, histograms
@@ -45,6 +46,7 @@ dashboard/
     cycling_cp.py           # CP model, CP over time, covariate analysis
     climbing.py             # Rock climbing split analysis
     weights.py              # Weight lifting form, exercise tracker, progress charts
+    skiing.py               # skiing, dont have much but its there
 ```
 
 ## Data Pipeline
@@ -90,6 +92,7 @@ Uses **5,000 bootstrap resamples** (case resampling with numpy lstsq) for confid
 - **ATL**: 7-day EMA (acute training load / fatigue)
 - **TSB**: CTL - ATL (training stress balance / form)
 - 60-day forecast using 42-day historical average TSS
+- need to add planner next for projected TSS by day, etc
 
 ### Power Analysis
 - Peak powers at 10 durations (5s through 2hr)
@@ -97,7 +100,7 @@ Uses **5,000 bootstrap resamples** (case resampling with numpy lstsq) for confid
 - Per-ride power histogram with zone coloring
 
 ### Route Analysis
-- Elevation profile with 20s smoothed grade
+- Elevation profile with 20s smoothed grade and 5s smoothed grade for comparison. Used Strava for a gravel race and got rekt because the smoothing screwed me up so i made this. was way under geared.
 - Climb detection: sustained >3% grade, >400m distance, >30m elevation gain
 - VAM (vertical ascent meters/hour) per climb
 
@@ -133,7 +136,7 @@ cp.rebuild()
 - **dash** - Web framework + Plotly charts
 - **polars** - Dataframe engine (parquet I/O, aggregations)
 - **garmin-fit-sdk** - FIT file decoding
-- **statsmodels** - OLS regression with HAC covariance
+- **statsmodels** - OLS regression
 - **numpy** - Bootstrap resampling, power curve computation
 - **pandas** - Required by statsmodels
 - **pyarrow** - Parquet read/write backend
