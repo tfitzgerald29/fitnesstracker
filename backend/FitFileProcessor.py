@@ -10,7 +10,9 @@ from garmin_fit_sdk import Decoder, Stream
 
 class FitFileProcessor:
     _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    DEFAULT_SOURCE_FOLDER = os.environ.get("FIT_SOURCE_FOLDER", os.path.expanduser("~/Downloads"))
+    DEFAULT_SOURCE_FOLDER = os.environ.get(
+        "FIT_SOURCE_FOLDER", os.path.expanduser("~/Downloads")
+    )
     DEFAULT_PROCESSED_PATH = os.path.join(_BASE_DIR, "processedfiles")
     DEFAULT_MERGED_PATH = os.path.join(_BASE_DIR, "mergedfiles")
 
@@ -232,7 +234,9 @@ class FitFileProcessor:
                                     [existing_df, new_df], how="diagonal_relaxed"
                                 )
                                 # Deduplicate activities exported from multiple sources
-                                dedup_cols = [c for c in combined_df.columns if c != "source_file"]
+                                dedup_cols = [
+                                    c for c in combined_df.columns if c != "source_file"
+                                ]
                                 combined_df = combined_df.unique(subset=dedup_cols)
                                 combined_df.write_parquet(parquet_path)
                                 print(
@@ -253,7 +257,9 @@ class FitFileProcessor:
                                 )
                         else:
                             # Create new file, deduplicating activities from multiple sources
-                            dedup_cols = [c for c in new_df.columns if c != "source_file"]
+                            dedup_cols = [
+                                c for c in new_df.columns if c != "source_file"
+                            ]
                             new_df = new_df.unique(subset=dedup_cols)
                             new_df.write_parquet(parquet_path)
                             print(

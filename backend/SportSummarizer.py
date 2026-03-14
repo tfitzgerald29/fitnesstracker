@@ -4,7 +4,6 @@ import polars as pl
 
 
 class SportSummarizer:
-
     def __init__(self, mergedfiles_path):
         self.mergedfiles_path = mergedfiles_path
 
@@ -124,7 +123,9 @@ class SportSummarizer:
 
         # Rename sport columns for display
         rename_map = {"training": "weight_lifting"}
-        pivoted = pivoted.rename({k: v for k, v in rename_map.items() if k in pivoted.columns})
+        pivoted = pivoted.rename(
+            {k: v for k, v in rename_map.items() if k in pivoted.columns}
+        )
 
         # Order sport columns: preferred sports first, then alphabetical remainder
         sport_cols = [c for c in pivoted.columns if c not in index_cols]
@@ -236,20 +237,31 @@ class SportSummarizer:
                 (
                     pl.col(timestamp_col).dt.year().cast(pl.Utf8)
                     + "-"
-                    + pl.col(timestamp_col).dt.month().cast(pl.Utf8).str.pad_start(2, "0")
+                    + pl.col(timestamp_col)
+                    .dt.month()
+                    .cast(pl.Utf8)
+                    .str.pad_start(2, "0")
                 ).alias("label")
             )
         else:
             df = df.with_columns(
-                pl.col(timestamp_col).dt.truncate("1w").dt.strftime("%Y-%m-%d").alias("label")
+                pl.col(timestamp_col)
+                .dt.truncate("1w")
+                .dt.strftime("%Y-%m-%d")
+                .alias("label")
             )
 
-        summary = df.group_by(["sport", "label"]).agg(
-            pl.col("total_timer_time").sum().alias("total_seconds"),
-            pl.len().alias("activities"),
-        ).with_columns(
-            (pl.col("total_seconds") / 3600).round(1).alias("hours"),
-        ).sort("label")
+        summary = (
+            df.group_by(["sport", "label"])
+            .agg(
+                pl.col("total_timer_time").sum().alias("total_seconds"),
+                pl.len().alias("activities"),
+            )
+            .with_columns(
+                (pl.col("total_seconds") / 3600).round(1).alias("hours"),
+            )
+            .sort("label")
+        )
 
         return summary.to_dicts()
 
@@ -287,7 +299,9 @@ class SportSummarizer:
         today = date.today()
         ytd = df.filter(pl.col(timestamp_col).dt.year() == today.year)
 
-        total_hours = round(ytd["total_timer_time"].sum() / 3600, 1) if not ytd.is_empty() else 0
+        total_hours = (
+            round(ytd["total_timer_time"].sum() / 3600, 1) if not ytd.is_empty() else 0
+        )
         total_activities = len(ytd)
 
         # Weeks elapsed this year (at least 1)
@@ -297,19 +311,25 @@ class SportSummarizer:
         # Per-sport stats YTD
         sport_stats = []
         if not ytd.is_empty():
-            by_sport = ytd.group_by("sport").agg(
-                pl.col("total_timer_time").sum().alias("total_seconds"),
-                pl.len().alias("activities"),
-            ).sort("total_seconds", descending=True)
+            by_sport = (
+                ytd.group_by("sport")
+                .agg(
+                    pl.col("total_timer_time").sum().alias("total_seconds"),
+                    pl.len().alias("activities"),
+                )
+                .sort("total_seconds", descending=True)
+            )
 
             for r in by_sport.to_dicts():
                 hours = round(r["total_seconds"] / 3600, 1)
-                sport_stats.append({
-                    "sport": r["sport"],
-                    "hours": hours,
-                    "activities": r["activities"],
-                    "hours_per_week": round(hours / weeks_elapsed, 1),
-                })
+                sport_stats.append(
+                    {
+                        "sport": r["sport"],
+                        "hours": hours,
+                        "activities": r["activities"],
+                        "hours_per_week": round(hours / weeks_elapsed, 1),
+                    }
+                )
 
         return {
             "total_hours_ytd": total_hours,

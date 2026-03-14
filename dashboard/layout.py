@@ -135,6 +135,27 @@ def create_layout():
                                     "borderTop": f"2px solid {COLORS['accent']}",
                                 },
                             ),
+                            dcc.Tab(
+                                label="Skiing",
+                                value="Ski",
+                                style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                },
+                                selected_style={
+                                    "padding": "6px 20px",
+                                    "lineHeight": "28px",
+                                    "whiteSpace": "nowrap",
+                                    "display": "flex",
+                                    "alignItems": "center",
+                                    "justifyContent": "center",
+                                    "borderTop": f"2px solid {COLORS['accent']}",
+                                },
+                            ),
                         ],
                         style={
                             "height": "40px",

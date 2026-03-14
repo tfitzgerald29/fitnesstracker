@@ -4,43 +4,43 @@
     "coefficients": [
       {
         "name": "const",
-        "coef_median": 249.3951,
-        "coef_mean": 246.8769,
+        "coef_median": 248.2139,
+        "coef_mean": 245.7751,
         "pvalue_boot": 0.0,
-        "ci_low": 197.8383,
-        "ci_high": 281.0256
+        "ci_low": 196.8056,
+        "ci_high": 280.0448
       },
       {
         "name": "ctl_lag3",
-        "coef_median": 0.5409,
-        "coef_mean": 0.5869,
-        "pvalue_boot": 0.042,
-        "ci_low": 0.0258,
-        "ci_high": 1.4639
+        "coef_median": 0.554,
+        "coef_mean": 0.6066,
+        "pvalue_boot": 0.036,
+        "ci_low": 0.0363,
+        "ci_high": 1.4837
       },
       {
         "name": "spring",
-        "coef_median": 16.9388,
-        "coef_mean": 17.4096,
-        "pvalue_boot": 0.0624,
-        "ci_low": -0.5892,
-        "ci_high": 38.8054
+        "coef_median": 15.4987,
+        "coef_mean": 16.094,
+        "pvalue_boot": 0.0824,
+        "ci_low": -1.6282,
+        "ci_high": 36.3651
       },
       {
         "name": "summer",
-        "coef_median": 23.0726,
-        "coef_mean": 23.2625,
-        "pvalue_boot": 0.0036,
-        "ci_low": 9.5917,
-        "ci_high": 37.8015
+        "coef_median": 23.142,
+        "coef_mean": 23.4905,
+        "pvalue_boot": 0.0044,
+        "ci_low": 10.1454,
+        "ci_high": 37.8498
       },
       {
         "name": "fall",
-        "coef_median": 24.1361,
-        "coef_mean": 24.5872,
-        "pvalue_boot": 0.0396,
-        "ci_low": 0.6999,
-        "ci_high": 52.0828
+        "coef_median": 24.3591,
+        "coef_mean": 24.8391,
+        "pvalue_boot": 0.0356,
+        "ci_low": 0.9453,
+        "ci_high": 53.3403
       }
     ]
   },
@@ -49,43 +49,43 @@
     "coefficients": [
       {
         "name": "const",
-        "coef_median": 210.3084,
-        "coef_mean": 208.5274,
+        "coef_median": 208.6155,
+        "coef_mean": 206.5166,
         "pvalue_boot": 0.0,
-        "ci_low": 166.6425,
-        "ci_high": 239.4991
+        "ci_low": 162.5409,
+        "ci_high": 237.4155
       },
       {
         "name": "ctl_lag3",
-        "coef_median": 0.7364,
-        "coef_mean": 0.7762,
-        "pvalue_boot": 0.0052,
-        "ci_low": 0.2545,
-        "ci_high": 1.537
+        "coef_median": 0.7663,
+        "coef_mean": 0.8134,
+        "pvalue_boot": 0.004,
+        "ci_low": 0.2924,
+        "ci_high": 1.6356
       },
       {
         "name": "spring",
-        "coef_median": 23.586,
-        "coef_mean": 23.4264,
-        "pvalue_boot": 0.026,
-        "ci_low": 4.2852,
-        "ci_high": 40.6906
+        "coef_median": 20.4887,
+        "coef_mean": 20.0263,
+        "pvalue_boot": 0.0532,
+        "ci_low": -0.1479,
+        "ci_high": 38.3977
       },
       {
         "name": "summer",
-        "coef_median": 33.3967,
-        "coef_mean": 33.5904,
-        "pvalue_boot": 0.0016,
-        "ci_low": 21.6517,
-        "ci_high": 46.7529
+        "coef_median": 33.533,
+        "coef_mean": 33.8164,
+        "pvalue_boot": 0.0008,
+        "ci_low": 21.9715,
+        "ci_high": 47.1868
       },
       {
         "name": "fall",
-        "coef_median": 18.1585,
-        "coef_mean": 18.4102,
-        "pvalue_boot": 0.0344,
-        "ci_low": 0.9004,
-        "ci_high": 37.3498
+        "coef_median": 18.0017,
+        "coef_mean": 18.2258,
+        "pvalue_boot": 0.0388,
+        "ci_low": 0.6274,
+        "ci_high": 37.4252
       }
     ]
   },
@@ -94,43 +94,43 @@
     "coefficients": [
       {
         "name": "const",
-        "coef_median": 172.9479,
-        "coef_mean": 171.7183,
+        "coef_median": 172.0883,
+        "coef_mean": 171.015,
         "pvalue_boot": 0.0,
-        "ci_low": 121.5149,
-        "ci_high": 214.9975
+        "ci_low": 123.444,
+        "ci_high": 212.4633
       },
       {
         "name": "ctl_lag3",
-        "coef_median": 0.6663,
-        "coef_mean": 0.6995,
-        "pvalue_boot": 0.0612,
-        "ci_low": -0.0462,
-        "ci_high": 1.636
+        "coef_median": 0.6791,
+        "coef_mean": 0.7113,
+        "pvalue_boot": 0.0528,
+        "ci_low": -0.0092,
+        "ci_high": 1.6016
       },
       {
         "name": "spring",
-        "coef_median": 20.8285,
-        "coef_mean": 21.1113,
-        "pvalue_boot": 0.062,
-        "ci_low": -0.7721,
-        "ci_high": 43.7016
+        "coef_median": 19.7929,
+        "coef_mean": 20.0326,
+        "pvalue_boot": 0.0464,
+        "ci_low": 0.3955,
+        "ci_high": 41.4514
       },
       {
         "name": "summer",
-        "coef_median": 34.7648,
-        "coef_mean": 34.4595,
-        "pvalue_boot": 0.0108,
-        "ci_low": 11.1132,
-        "ci_high": 55.8851
+        "coef_median": 34.7433,
+        "coef_mean": 34.5477,
+        "pvalue_boot": 0.0076,
+        "ci_low": 12.5726,
+        "ci_high": 55.7253
       },
       {
         "name": "fall",
-        "coef_median": 17.0386,
-        "coef_mean": 17.3156,
-        "pvalue_boot": 0.1456,
-        "ci_low": -4.9721,
-        "ci_high": 41.4951
+        "coef_median": 17.0764,
+        "coef_mean": 17.1801,
+        "pvalue_boot": 0.138,
+        "ci_low": -4.6728,
+        "ci_high": 41.7067
       }
     ]
   }
