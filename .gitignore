@@ -3,12 +3,18 @@ garminfitfiles/
 processedfiles/
 output/
 mergedfiles/record_mesgs.parquet
+mergedfiles/tcx_record_mesgs.parquet
+mergedfiles/tcx_session_mesgs.parquet
 
 # Notebooks
 *.ipynb
 
-# Main script in root
+# scripts
 main.py
+backend/tcx_import.py
+removeoldfiles.py
+tcx_file_processor_NB.py
+
 
 # Python
 __pycache__/

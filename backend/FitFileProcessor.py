@@ -1,11 +1,15 @@
 import json
 import os
 import shutil
+import xml.etree.ElementTree as ET
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 import polars as pl
 from garmin_fit_sdk import Decoder, Stream
+
+TCX_NS = {"tcx": "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 
 
 class FitFileProcessor:

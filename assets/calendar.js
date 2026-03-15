@@ -227,8 +227,9 @@
 
     var calOpts = {
       initialView: "dayGridMonth",
+      firstDay: 1,
       fixedWeekCount: false,
-      showNonCurrentDates: false,
+      showNonCurrentDates: true,
       headerToolbar: {
         left: "prev,next today",
         center: "title",

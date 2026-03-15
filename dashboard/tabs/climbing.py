@@ -26,11 +26,15 @@ def _load_climbing_data():
 
     splits = pl.DataFrame()
     if os.path.exists(splits_path):
-        splits = pl.read_parquet(splits_path).filter(pl.col("source_file").is_in(climbing_files))
+        splits = pl.read_parquet(splits_path).filter(
+            pl.col("source_file").is_in(climbing_files)
+        )
 
     summaries = pl.DataFrame()
     if os.path.exists(summaries_path):
-        summaries = pl.read_parquet(summaries_path).filter(pl.col("source_file").is_in(climbing_files))
+        summaries = pl.read_parquet(summaries_path).filter(
+            pl.col("source_file").is_in(climbing_files)
+        )
 
     return sessions, splits, summaries
 
@@ -49,7 +53,11 @@ def _stat_card(label, value, sub=""):
     children = [
         html.Div(
             str(value),
-            style={"fontSize": "1.5rem", "fontWeight": "bold", "color": COLORS["accent"]},
+            style={
+                "fontSize": "1.5rem",
+                "fontWeight": "bold",
+                "color": COLORS["accent"],
+            },
         ),
         html.Div(
             label,
@@ -58,10 +66,23 @@ def _stat_card(label, value, sub=""):
     ]
     if sub:
         children.append(
-            html.Div(sub, style={"fontSize": "0.7rem", "color": COLORS["muted"], "marginTop": "2px"})
+            html.Div(
+                sub,
+                style={
+                    "fontSize": "0.7rem",
+                    "color": COLORS["muted"],
+                    "marginTop": "2px",
+                },
+            )
         )
     return html.Div(
-        style={**CARD_STYLE, "display": "inline-block", "textAlign": "center", "padding": "16px 28px", "minWidth": "140px"},
+        style={
+            **CARD_STYLE,
+            "display": "inline-block",
+            "textAlign": "center",
+            "padding": "16px 28px",
+            "minWidth": "140px",
+        },
         children=children,
     )
 
@@ -85,12 +106,22 @@ def climbing_tab():
             html.Div(id="climbing-summary-cards"),
             html.H3(
                 "Monthly Trends",
-                style={"color": COLORS["accent"], "marginBottom": "12px", "marginTop": "24px", "fontSize": "0.95rem"},
+                style={
+                    "color": COLORS["accent"],
+                    "marginBottom": "12px",
+                    "marginTop": "24px",
+                    "fontSize": "0.95rem",
+                },
             ),
             html.Div(dcc.Graph(id="climbing-trends-chart"), style=CARD_STYLE),
             html.H3(
                 "Sessions",
-                style={"color": COLORS["accent"], "marginBottom": "12px", "marginTop": "24px", "fontSize": "0.95rem"},
+                style={
+                    "color": COLORS["accent"],
+                    "marginBottom": "12px",
+                    "marginTop": "24px",
+                    "fontSize": "0.95rem",
+                },
             ),
             dcc.Dropdown(
                 id="climbing-session-dropdown",
@@ -116,18 +147,32 @@ def update_climbing_overview(tab):
     sessions, splits, _summaries = _load_climbing_data()
 
     if sessions is None or sessions.is_empty():
-        return [html.Div("No climbing data found.", style={"color": COLORS["muted"]})], [], None, go.Figure()
+        return (
+            [html.Div("No climbing data found.", style={"color": COLORS["muted"]})],
+            [],
+            None,
+            go.Figure(),
+        )
 
     # -- Summary cards --
     total_sessions = len(sessions)
     total_routes = _count_routes(splits)
     total_hours = round(sessions["total_timer_time"].sum() / 3600, 1)
-    total_calories = int(sessions["total_calories"].drop_nulls().sum()) if "total_calories" in sessions.columns else 0
+    total_calories = (
+        int(sessions["total_calories"].drop_nulls().sum())
+        if "total_calories" in sessions.columns
+        else 0
+    )
     avg_routes = round(total_routes / total_sessions, 1) if total_sessions > 0 else 0
     total_ascent = total_routes * FEET_PER_ROUTE
 
     cards = html.Div(
-        style={"display": "flex", "gap": "12px", "flexWrap": "wrap", "marginBottom": "8px"},
+        style={
+            "display": "flex",
+            "gap": "12px",
+            "flexWrap": "wrap",
+            "marginBottom": "8px",
+        },
         children=[
             _stat_card("Sessions", total_sessions),
             _stat_card("Total Routes", total_routes),
@@ -161,16 +206,23 @@ def update_climbing_overview(tab):
     df = df.with_columns(
         pl.col(ts_col).dt.strftime("%Y-%m").alias("month"),
     )
-    monthly = df.group_by("month").agg(
-        pl.len().alias("sessions"),
-        (pl.col("total_timer_time").sum() / 3600).round(1).alias("hours"),
-    ).sort("month")
+    monthly = (
+        df.group_by("month")
+        .agg(
+            pl.len().alias("sessions"),
+            (pl.col("total_timer_time").sum() / 3600).round(1).alias("hours"),
+        )
+        .sort("month")
+    )
 
     # Count routes per month
     if not splits.is_empty():
         active_splits = splits.filter(pl.col("split_type") == "climb_active")
         active_splits = active_splits.with_columns(
-            pl.col("start_time").dt.convert_time_zone("America/Denver").dt.strftime("%Y-%m").alias("month")
+            pl.col("start_time")
+            .dt.convert_time_zone("America/Denver")
+            .dt.strftime("%Y-%m")
+            .alias("month")
         )
         routes_monthly = active_splits.group_by("month").agg(pl.len().alias("routes"))
         monthly = monthly.join(routes_monthly, on="month", how="left").with_columns(
@@ -180,26 +232,35 @@ def update_climbing_overview(tab):
         monthly = monthly.with_columns(pl.lit(0).alias("routes"))
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=monthly["month"].to_list(),
-        y=monthly["routes"].to_list(),
-        name="Routes",
-        marker_color=COLORS["accent"],
-    ))
-    fig.add_trace(go.Scatter(
-        x=monthly["month"].to_list(),
-        y=monthly["hours"].to_list(),
-        name="Hours",
-        yaxis="y2",
-        mode="lines+markers",
-        line={"color": "#FF6B35", "width": 2},
-    ))
+    fig.add_trace(
+        go.Bar(
+            x=monthly["month"].to_list(),
+            y=monthly["routes"].to_list(),
+            name="Routes",
+            marker_color=COLORS["accent"],
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=monthly["month"].to_list(),
+            y=monthly["hours"].to_list(),
+            name="Hours",
+            yaxis="y2",
+            mode="lines+markers",
+            line={"color": "#FF6B35", "width": 2},
+        )
+    )
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         yaxis={"title": "Routes", "gridcolor": COLORS["border"]},
-        yaxis2={"title": "Hours", "overlaying": "y", "side": "right", "gridcolor": COLORS["border"]},
+        yaxis2={
+            "title": "Hours",
+            "overlaying": "y",
+            "side": "right",
+            "gridcolor": COLORS["border"],
+        },
         xaxis={"gridcolor": COLORS["border"]},
         legend={"orientation": "h", "y": 1.12},
         margin={"t": 40, "b": 40, "l": 50, "r": 50},
@@ -247,7 +308,12 @@ def update_climbing_session(source_file):
             )["total_timer_time"].sum()
 
     session_cards = html.Div(
-        style={"display": "flex", "gap": "12px", "flexWrap": "wrap", "marginBottom": "16px"},
+        style={
+            "display": "flex",
+            "gap": "12px",
+            "flexWrap": "wrap",
+            "marginBottom": "16px",
+        },
         children=[
             _stat_card("Duration", total_time),
             _stat_card("Routes", n_routes),
@@ -262,9 +328,14 @@ def update_climbing_session(source_file):
 
     # Route breakdown table
     if splits.is_empty():
-        return [session_cards, html.Div("No route data available.", style={"color": COLORS["muted"]})]
+        return [
+            session_cards,
+            html.Div("No route data available.", style={"color": COLORS["muted"]}),
+        ]
 
-    session_splits = splits.filter(pl.col("source_file") == source_file).sort("start_time")
+    session_splits = splits.filter(pl.col("source_file") == source_file).sort(
+        "start_time"
+    )
     if session_splits.is_empty():
         return [session_cards]
 
@@ -276,13 +347,17 @@ def update_climbing_session(source_file):
         if is_climb:
             climb_num += 1
 
-        rows.append({
-            "#": climb_num if is_climb else "",
-            "Type": "Climb" if is_climb else "Rest",
-            "Duration": _format_duration(s.get("total_timer_time")),
-            "Ascent (ft)": FEET_PER_ROUTE if is_climb else "—",
-            "Calories": int(s["total_calories"]) if s.get("total_calories") else "—",
-        })
+        rows.append(
+            {
+                "#": climb_num if is_climb else "",
+                "Type": "Climb" if is_climb else "Rest",
+                "Duration": _format_duration(s.get("total_timer_time")),
+                "Ascent (ft)": FEET_PER_ROUTE if is_climb else "—",
+                "Calories": int(s["total_calories"])
+                if s.get("total_calories")
+                else "—",
+            }
+        )
 
     table = dash_table.DataTable(
         data=rows,

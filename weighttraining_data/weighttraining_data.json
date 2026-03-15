@@ -5839,5 +5839,367 @@
       }
     ],
     "body_weight": 131.8
+  },
+  {
+    "date": "2026-03-14",
+    "exercises": [
+      {
+        "name": "inclined_bench_press",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 115,
+            "reps": 8
+          },
+          {
+            "set": 2,
+            "weight": 150,
+            "reps": 8
+          },
+          {
+            "set": 3,
+            "weight": 150,
+            "reps": 8
+          },
+          {
+            "set": 4,
+            "weight": 150,
+            "reps": 5
+          }
+        ]
+      },
+      {
+        "name": "pullups",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 20,
+            "reps": 8
+          },
+          {
+            "set": 2,
+            "weight": 20,
+            "reps": 8
+          },
+          {
+            "set": 3,
+            "weight": 20,
+            "reps": 8
+          }
+        ]
+      },
+      {
+        "name": "dumbbell_chestpress",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 60,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 60,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 60,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "seated_row",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 100,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 100,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 100,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "cable_lat_raise",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 30,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 30,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 30,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "ezbarcurl",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 35,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 35,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 35,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "tricep_extension",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 80,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 80,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 80,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "dips",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 32,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 32,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 32,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "dumbbell_lat_raise",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 15,
+            "reps": 12
+          },
+          {
+            "set": 2,
+            "weight": 15,
+            "reps": 15
+          },
+          {
+            "set": 3,
+            "weight": 15,
+            "reps": 11
+          }
+        ]
+      },
+      {
+        "name": "tricep_pushdown",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 100,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 100,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 100,
+            "reps": 20
+          }
+        ]
+      },
+      {
+        "name": "shrugs",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 65,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 65,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 65,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "cable_bicep_curl",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 50,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 50,
+            "reps": 9
+          },
+          {
+            "set": 3,
+            "weight": 45,
+            "reps": 9
+          }
+        ]
+      }
+    ],
+    "body_weight": 132.9
+  },
+  {
+    "date": "2026-03-15",
+    "exercises": [
+      {
+        "name": "rdl",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 105,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 105,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 105,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "trapbar_deadlift",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 165,
+            "reps": 10
+          },
+          {
+            "set": 2,
+            "weight": 165,
+            "reps": 8
+          },
+          {
+            "set": 3,
+            "weight": 165,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "lunge",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 100,
+            "reps": 8
+          },
+          {
+            "set": 2,
+            "weight": 90,
+            "reps": 8
+          },
+          {
+            "set": 3,
+            "weight": 90,
+            "reps": 8
+          }
+        ]
+      },
+      {
+        "name": "dragon_flags",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 0,
+            "reps": 12
+          },
+          {
+            "set": 2,
+            "weight": 0,
+            "reps": 10
+          },
+          {
+            "set": 3,
+            "weight": 0,
+            "reps": 9
+          },
+          {
+            "set": 4,
+            "weight": 0,
+            "reps": 10
+          }
+        ]
+      },
+      {
+        "name": "ab_wheel",
+        "sets": [
+          {
+            "set": 1,
+            "weight": 0,
+            "reps": 20
+          },
+          {
+            "set": 2,
+            "weight": 0,
+            "reps": 20
+          },
+          {
+            "set": 3,
+            "weight": 0,
+            "reps": 25
+          }
+        ]
+      }
+    ],
+    "body_weight": 132.9
   }
 ]

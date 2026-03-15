@@ -34,14 +34,22 @@ def _get_exercise_names(data):
     return sorted(names)
 
 
+BW_PLUS_EXERCISES = {"pull_ups", "dips", "pullups", "chin_ups"}
+
+
 def _bw(entry):
     """Get body weight for an entry, falling back to config default."""
     return entry.get("body_weight") or BODY_WEIGHT_LB
 
 
-def _set_weight(s, bw):
-    """Get effective weight for a set, using body weight for BW exercises."""
-    return s["weight"] if s["weight"] > 0 else bw
+def _set_weight(s, bw, exercise_name=None):
+    """Get effective weight for a set. BW exercises use body weight,
+    BW+ exercises (pullups, dips) add body weight to entered weight."""
+    if s["weight"] == 0:
+        return bw
+    if exercise_name and exercise_name in BW_PLUS_EXERCISES:
+        return bw + s["weight"]
+    return s["weight"]
 
 
 def _render_draft(draft):
@@ -121,7 +129,10 @@ def _weights_log():
                     {"label": n.replace("_", " ").title(), "value": n}
                     for n in exercise_names
                 ],
-                value=[n for n in ["inclined_bench_press", "squat"] if n in exercise_names] or (exercise_names[:1] if exercise_names else []),
+                value=[
+                    n for n in ["inclined_bench_press", "squat"] if n in exercise_names
+                ]
+                or (exercise_names[:1] if exercise_names else []),
                 multi=True,
                 placeholder="Select exercises to compare...",
                 style={"backgroundColor": COLORS["card"], "marginBottom": "12px"},
@@ -138,7 +149,7 @@ def _weights_log():
         total_vol = 0
         for ex in entry["exercises"]:
             total_vol += sum(
-                _set_weight(s, bw) * s["reps"] for s in ex["sets"]
+                _set_weight(s, bw, ex["name"]) * s["reps"] for s in ex["sets"]
             )
         session_dates.append(entry["date"])
         session_volumes.append(total_vol)
@@ -148,7 +159,7 @@ def _weights_log():
             x=session_dates,
             y=session_volumes,
             marker_color="#2196F3",
-            text=[f"{v:,}" for v in session_volumes],
+            text=[f"{int(v):,}" for v in session_volumes],
             textposition="outside",
             textfont_size=9,
         )
@@ -205,7 +216,7 @@ def _weights_personal_records():
         for ex in entry["exercises"]:
             name = ex["name"]
             for s in ex["sets"]:
-                wt = _set_weight(s, bw)
+                wt = _set_weight(s, bw, name)
                 if name not in pr_data or wt > pr_data[name]["max_wt"]:
                     pr_data[name] = {
                         "max_wt": wt,
@@ -732,11 +743,10 @@ def update_exercise_progress(selected):
             for ex in entry["exercises"]:
                 if ex["name"] == exercise_name:
                     volume = sum(
-                        _set_weight(s, bw) * s["reps"] for s in ex["sets"]
+                        _set_weight(s, bw, exercise_name) * s["reps"]
+                        for s in ex["sets"]
                     )
-                    max_wt = max(
-                        _set_weight(s, bw) for s in ex["sets"]
-                    )
+                    max_wt = max(_set_weight(s, bw, exercise_name) for s in ex["sets"])
                     entries.append((entry["date"], volume, max_wt))
         exercise_data[exercise_name] = entries
 
@@ -790,7 +800,7 @@ def update_exercise_progress(selected):
             cells.append(
                 html.Td(
                     [
-                        html.Div(f"{volume:,}"),
+                        html.Div(f"{int(volume):,}"),
                         html.Div(
                             date_str,
                             style={
@@ -871,7 +881,7 @@ def update_exercise_progress(selected):
                                     style={"color": color},
                                 ),
                                 html.Div(
-                                    f"{vol_sign}{vol_delta:,} vol",
+                                    f"{vol_sign}{int(vol_delta):,} vol",
                                     style={
                                         "fontSize": "0.7rem",
                                         "color": COLORS["muted"],
@@ -879,7 +889,7 @@ def update_exercise_progress(selected):
                                     },
                                 ),
                                 html.Div(
-                                    f"{curr_max_wt}lb max",
+                                    f"{int(curr_max_wt)}lb max",
                                     style={
                                         "fontSize": "0.7rem",
                                         "color": COLORS["muted"],
