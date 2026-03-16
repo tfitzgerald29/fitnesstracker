@@ -3,7 +3,7 @@ import os
 
 
 class WeightTrainingLog:
-    DATA_FILE = "/Users/tylerfitzgerald/Documents/cyclingdashboard_v2/weighttraining_data/weighttraining_data.json"
+    DATA_FILE = "/Users/tylerfitzgerald/Documents/fitnesstracker/weighttraining_data/weighttraining_data.json"
 
     def __init__(self):
         self.log = self._load()
