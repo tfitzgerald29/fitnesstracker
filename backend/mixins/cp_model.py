@@ -6,6 +6,8 @@ import numpy as np
 import polars as pl
 import statsmodels.formula.api as smf
 
+from ..schemas import load_records
+
 
 class CpModelMixin:
     """Critical power estimation, best power curve, and CP over time."""
@@ -73,13 +75,12 @@ class CpModelMixin:
                     self.mergedfiles_path, "record_mesgs.parquet"
                 )
                 if os.path.exists(records_path):
-                    records = (
-                        pl.read_parquet(
-                            records_path, columns=["source_file", "power", "timestamp"]
-                        )
-                        .filter(pl.col("source_file").is_in(source_files))
-                        .sort("source_file", "timestamp")
-                    )
+                    records = load_records(
+                        "cycling",
+                        records_path,
+                        source_files=list(source_files),
+                        columns=["source_file", "power", "timestamp"],
+                    ).sort("source_file", "timestamp")
                     for _, group in records.group_by("source_file"):
                         power_series = group["power"]
                         if power_series.drop_nulls().len() == 0:

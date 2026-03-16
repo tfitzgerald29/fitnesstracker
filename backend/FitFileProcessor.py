@@ -1,13 +1,13 @@
-import json
 import os
 import shutil
-import xml.etree.ElementTree as ET
 import zipfile
-from datetime import datetime
 from pathlib import Path
-
 import polars as pl
 from garmin_fit_sdk import Decoder, Stream
+
+from .schemas import INGEST_COLUMNS
+from .schemas.base import RECORD_BASE, SESSION_BASE
+from .schemas import cycling, climbing, hiking, running, skiing
 
 TCX_NS = {"tcx": "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"}
 
@@ -30,14 +30,11 @@ class FitFileProcessor:
             "session_mesgs",
             "record_mesgs",
             "split_mesgs",  # rock climbing
-            "split_summary_mesgs",  # rocking climbing
+            "split_summary_mesgs",  # rock climbing
         ]
-        expected_cols_path = Path(__file__).parent / "expected_columns.json"
-        if expected_cols_path.exists():
-            with open(expected_cols_path) as f:
-                self.expected_columns = json.load(f)
-        else:
-            self.expected_columns = {}
+        # Column padding lists derived from the schemas package.
+        # Replaces expected_columns.json — schemas are now the single source of truth.
+        self.expected_columns = INGEST_COLUMNS
 
     def unzip_fit_files(self):
         # Ensure the processed path exists
@@ -141,8 +138,12 @@ class FitFileProcessor:
                         new_df = new_df.with_columns(
                             pl.col(col).cast(existing_df[col].dtype)
                         )
-                    except Exception:
-                        pass  # leave as-is if cast fails, concat will use supertype
+                    except Exception as exc:
+                        print(
+                            f"  [align_schemas] WARNING: cannot cast '{col}' "
+                            f"from {new_df[col].dtype} → {existing_df[col].dtype}: "
+                            f"{exc}. Falling back to supertype via diagonal_relaxed concat."
+                        )
 
         # Sort columns to match order
         all_cols = sorted(existing_cols | new_cols)
@@ -150,6 +151,84 @@ class FitFileProcessor:
         new_df = new_df.select(all_cols)
 
         return existing_df, new_df
+
+    # ── Schema drift detection ─────────────────────────────────────────────
+
+    # Union of all declared columns per message type (built once at class load).
+    _ALL_SESSION_COLS: set[str] = set()
+    for _s in [
+        cycling.SESSION,
+        skiing.SESSION,
+        climbing.SESSION,
+        running.SESSION,
+        hiking.SESSION,
+    ]:
+        _ALL_SESSION_COLS.update(_s.keys())
+
+    _ALL_RECORD_COLS: set[str] = set()
+    for _s in [cycling.RECORD, running.RECORD, hiking.RECORD, RECORD_BASE]:
+        _ALL_RECORD_COLS.update(_s.keys())
+
+    _SCHEMA_COLS: dict[str, set[str]] = {
+        "session_mesgs": _ALL_SESSION_COLS,
+        "record_mesgs": _ALL_RECORD_COLS,
+    }
+
+    def check_schema_drift(
+        self,
+        df: pl.DataFrame | None = None,
+        msg_type: str | None = None,
+    ) -> dict[str, list[str]]:
+        """Detect columns present in data but absent from the declared schemas.
+
+        Can be called in two ways:
+
+        1. **Against the on-disk parquets** (no arguments) — scans every
+           message type that has a known schema and reports drift across all
+           of them.  Called from ``run()`` after ingestion.
+
+        2. **Against a freshly-built DataFrame** (pass *df* and *msg_type*) —
+           checks a single in-memory DataFrame before it is written to disk.
+           Called from ``process_new_fit_files()`` for each new batch.
+
+        Returns a dict of ``{msg_type: [unknown_col, ...]}``.  An empty dict
+        means no drift was detected.  Unrecognised columns are also printed so
+        they appear in the startup log.
+        """
+        drift: dict[str, list[str]] = {}
+
+        if df is not None and msg_type is not None:
+            # Single-DataFrame mode
+            known = self._SCHEMA_COLS.get(msg_type)
+            if known is None:
+                return drift  # no schema for this type — nothing to check
+            unknown = sorted(set(df.columns) - known)
+            if unknown:
+                drift[msg_type] = unknown
+        else:
+            # On-disk parquet mode
+            for mtype, known in self._SCHEMA_COLS.items():
+                path = os.path.join(self.mergedfiles_path, f"{mtype}.parquet")
+                if not os.path.exists(path):
+                    continue
+                try:
+                    cols = set(pl.read_parquet(path, n_rows=0).columns)
+                except Exception as e:
+                    print(
+                        f"  [schema_drift] WARNING: could not read {mtype}.parquet: {e}"
+                    )
+                    continue
+                unknown = sorted(cols - known)
+                if unknown:
+                    drift[mtype] = unknown
+
+        if drift:
+            print("\n  ⚠ Schema drift detected — columns not in any declared schema:")
+            for mtype, cols in drift.items():
+                print(f"    {mtype}: {cols}")
+            print("  Add them to backend/schemas/ to suppress this warning.\n")
+
+        return drift
 
     def process_new_fit_files(self, new_fit_files, already_processed):
         # Initialize dictionaries to store new data
@@ -227,6 +306,9 @@ class FitFileProcessor:
                                     row.setdefault(col, None)
 
                         new_df = pl.DataFrame(data, infer_schema_length=None)
+
+                        # Check for columns not in any declared schema
+                        self.check_schema_drift(df=new_df, msg_type=msg_type)
 
                         if os.path.exists(parquet_path):
                             try:
@@ -338,6 +420,11 @@ class FitFileProcessor:
         )
         print(f"Files with schema mismatches: {len(summary['schema_mismatch_files'])}")
         print(f"Files with processing errors: {len(summary['processing_error_files'])}")
+
+        # Scan on-disk parquets for any columns that crept in outside the schemas
+        print("\n[Step 4] Checking for schema drift...")
+        self.check_schema_drift()
+
         return summary
 
     def rebuild(self):

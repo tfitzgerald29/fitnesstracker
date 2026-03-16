@@ -1,6 +1,27 @@
 from .calendar import calendar_tab  # noqa: F401
 from .climbing import climbing_tab, update_climbing_overview, update_climbing_session  # noqa: F401
 from .cycling import cycling_tab  # noqa: F401 — importing the module registers all @callback decorators
-from .sports import sports_tab, update_sport_summary, update_summary_cards, update_total_chart, update_sport_chart  # noqa: F401
-from .weights import weights_tab, render_weights_subtab, update_exercise_progress, handle_sets, handle_workout  # noqa: F401
-from .skiing import skiing_tab, update_skiing_table  # noqa: F401
+from .hiking import hiking_tab, update_hiking_overview, update_hiking_session  # noqa: F401
+from .pickleball import pickleball_tab, update_pickleball_overview  # noqa: F401
+from .running import running_tab, update_running_overview  # noqa: F401
+from .skiing import (
+    skiing_tab,
+    update_skiing_overview,
+    update_skiing_season,
+    update_skiing_session,
+    update_skiing_route_map,
+)  # noqa: F401
+from .sports import (
+    sports_tab,
+    update_sport_summary,
+    update_summary_cards,
+    update_total_chart,
+    update_sport_chart,
+)  # noqa: F401
+from .weights import (
+    weights_tab,
+    render_weights_subtab,
+    update_exercise_progress,
+    handle_sets,
+    handle_workout,
+)  # noqa: F401

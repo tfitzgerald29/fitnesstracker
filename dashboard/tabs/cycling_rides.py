@@ -416,24 +416,68 @@ def update_wprime_balance(source_file):
         style={"display": "flex", "gap": "12px", "marginBottom": "12px"},
         children=[
             html.Div(
-                style={**CARD_STYLE, "display": "inline-block", "textAlign": "center", "padding": "12px 24px"},
+                style={
+                    **CARD_STYLE,
+                    "display": "inline-block",
+                    "textAlign": "center",
+                    "padding": "12px 24px",
+                },
                 children=[
-                    html.Div(f"{ftp}W", style={"fontSize": "1.3rem", "fontWeight": "bold", "color": COLORS["accent"]}),
-                    html.Div("CP", style={"fontSize": "0.75rem", "color": COLORS["muted"]}),
+                    html.Div(
+                        f"{ftp}W",
+                        style={
+                            "fontSize": "1.3rem",
+                            "fontWeight": "bold",
+                            "color": COLORS["accent"],
+                        },
+                    ),
+                    html.Div(
+                        "CP", style={"fontSize": "0.75rem", "color": COLORS["muted"]}
+                    ),
                 ],
             ),
             html.Div(
-                style={**CARD_STYLE, "display": "inline-block", "textAlign": "center", "padding": "12px 24px"},
+                style={
+                    **CARD_STYLE,
+                    "display": "inline-block",
+                    "textAlign": "center",
+                    "padding": "12px 24px",
+                },
                 children=[
-                    html.Div(f"{wp_kj} kJ", style={"fontSize": "1.3rem", "fontWeight": "bold", "color": COLORS["accent"]}),
-                    html.Div("W\u2032", style={"fontSize": "0.75rem", "color": COLORS["muted"]}),
+                    html.Div(
+                        f"{wp_kj} kJ",
+                        style={
+                            "fontSize": "1.3rem",
+                            "fontWeight": "bold",
+                            "color": COLORS["accent"],
+                        },
+                    ),
+                    html.Div(
+                        "W\u2032",
+                        style={"fontSize": "0.75rem", "color": COLORS["muted"]},
+                    ),
                 ],
             ),
             html.Div(
-                style={**CARD_STYLE, "display": "inline-block", "textAlign": "center", "padding": "12px 24px"},
+                style={
+                    **CARD_STYLE,
+                    "display": "inline-block",
+                    "textAlign": "center",
+                    "padding": "12px 24px",
+                },
                 children=[
-                    html.Div(f"{min_bal} kJ", style={"fontSize": "1.3rem", "fontWeight": "bold", "color": COLORS["accent"]}),
-                    html.Div("Min W\u2032 bal", style={"fontSize": "0.75rem", "color": COLORS["muted"]}),
+                    html.Div(
+                        f"{min_bal} kJ",
+                        style={
+                            "fontSize": "1.3rem",
+                            "fontWeight": "bold",
+                            "color": COLORS["accent"],
+                        },
+                    ),
+                    html.Div(
+                        "Min W\u2032 bal",
+                        style={"fontSize": "0.75rem", "color": COLORS["muted"]},
+                    ),
                 ],
             ),
         ],
@@ -498,9 +542,15 @@ def update_wprime_balance(source_file):
         hovermode="x unified",
     )
 
-    fig.update_yaxes(title_text="W\u2032 (kJ)", row=1, col=1, gridcolor="rgba(255,255,255,0.05)")
-    fig.update_yaxes(title_text="Power (W)", row=2, col=1, gridcolor="rgba(255,255,255,0.05)")
-    fig.update_xaxes(title_text="Time (min)", row=2, col=1, gridcolor="rgba(255,255,255,0.05)")
+    fig.update_yaxes(
+        title_text="W\u2032 (kJ)", row=1, col=1, gridcolor="rgba(255,255,255,0.05)"
+    )
+    fig.update_yaxes(
+        title_text="Power (W)", row=2, col=1, gridcolor="rgba(255,255,255,0.05)"
+    )
+    fig.update_xaxes(
+        title_text="Time (min)", row=2, col=1, gridcolor="rgba(255,255,255,0.05)"
+    )
     fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", row=1, col=1)
 
     return stats, fig
@@ -678,7 +728,9 @@ def update_elevation_profile(source_file):
             )
 
             # Zero line on grade subplot
-            fig.add_hline(y=0, line_dash="dot", line_color=COLORS["muted"], row=2, col=1)
+            fig.add_hline(
+                y=0, line_dash="dot", line_color=COLORS["muted"], row=2, col=1
+            )
 
             # Delta between instant and smoothed (bottom)
             delta = [round(i - s, 1) for i, s in zip(instant, grade)]
@@ -695,7 +747,9 @@ def update_elevation_profile(source_file):
                 row=3,
                 col=1,
             )
-            fig.add_hline(y=0, line_dash="dot", line_color=COLORS["muted"], row=3, col=1)
+            fig.add_hline(
+                y=0, line_dash="dot", line_color=COLORS["muted"], row=3, col=1
+            )
 
     fig.update_layout(
         paper_bgcolor=COLORS["card"],
@@ -705,7 +759,11 @@ def update_elevation_profile(source_file):
         height=650,
         margin=dict(t=30, b=60, l=60, r=30),
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0,
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="left",
+            x=0,
             font=dict(size=10),
         ),
     )
@@ -774,15 +832,30 @@ def update_climbs_section(source_file):
                     html.Div(
                         style={"display": "flex", "flexWrap": "wrap", "gap": "16px"},
                         children=[
-                            _climb_stat("Location", f"mi {c['start_mi']}–{c['end_mi']}"),
+                            _climb_stat(
+                                "Location", f"mi {c['start_mi']}–{c['end_mi']}"
+                            ),
                             _climb_stat("Distance", f"{c['distance_mi']} mi"),
                             _climb_stat("Gain", f"{c['elevation_gain_ft']} ft"),
                             _climb_stat("Time", duration_str),
                             _climb_stat("Avg Grade", f"{c['avg_grade']}%"),
                             _climb_stat("Max Grade", f"{c['max_grade']}%"),
-                            _climb_stat("Avg Power", f"{c['avg_power']}W" if c.get("avg_power") else "—"),
-                            _climb_stat("NP", f"{c['normalized_power']}W" if c.get("normalized_power") else "—"),
-                            _climb_stat("Avg Cadence", f"{c['avg_cadence']} rpm" if c.get("avg_cadence") else "—"),
+                            _climb_stat(
+                                "Avg Power",
+                                f"{c['avg_power']}W" if c.get("avg_power") else "—",
+                            ),
+                            _climb_stat(
+                                "NP",
+                                f"{c['normalized_power']}W"
+                                if c.get("normalized_power")
+                                else "—",
+                            ),
+                            _climb_stat(
+                                "Avg Cadence",
+                                f"{c['avg_cadence']} rpm"
+                                if c.get("avg_cadence")
+                                else "—",
+                            ),
                             _climb_stat("VAM", vam_str),
                         ],
                     ),
@@ -823,11 +896,17 @@ def update_route_map(source_file, color_mode):
                         lon=route["lon"],
                         mode="markers",
                         marker=dict(
-                            size=4,
+                            size=6,
                             color=route["power"],
-                            colorscale="YlOrRd",
+                            colorscale=[
+                                [0.0, "#313695"],  # deep blue   — easy / zone 1
+                                [0.25, "#74add1"],  # light blue  — zone 2
+                                [0.5, "#fee090"],  # yellow      — tempo / zone 3
+                                [0.75, "#f46d43"],  # orange      — threshold / zone 4
+                                [1.0, "#a50026"],  # dark red    — VO2max+ / zone 5+
+                            ],
                             showscale=True,
-                            colorbar=dict(title="W", thickness=10, len=0.5),
+                            colorbar=dict(title="W", thickness=12, len=0.6),
                         ),
                         hovertemplate="%{marker.color:.0f}W<extra></extra>",
                     )
@@ -841,11 +920,11 @@ def update_route_map(source_file, color_mode):
                         lon=route["lon"],
                         mode="markers",
                         marker=dict(
-                            size=4,
+                            size=6,
                             color=elev_ft,
                             colorscale="Viridis",
                             showscale=True,
-                            colorbar=dict(title="ft", thickness=10, len=0.5),
+                            colorbar=dict(title="ft", thickness=12, len=0.6),
                         ),
                         hovertemplate="%{marker.color:.0f} ft<extra></extra>",
                     )
@@ -872,7 +951,7 @@ def update_route_map(source_file, color_mode):
                             lon=route["lon"],
                             mode="markers",
                             marker=dict(
-                                size=4,
+                                size=6,
                                 color=grade,
                                 colorscale=[
                                     [0, "#2196F3"],
@@ -884,9 +963,7 @@ def update_route_map(source_file, color_mode):
                                 cmin=-5,
                                 cmax=15,
                                 showscale=True,
-                                colorbar=dict(
-                                    title="Grade %", thickness=10, len=0.5
-                                ),
+                                colorbar=dict(title="Grade %", thickness=12, len=0.6),
                             ),
                             hovertemplate="%{marker.color:.1f}%<extra></extra>",
                         )
@@ -899,7 +976,9 @@ def update_route_map(source_file, color_mode):
                     route_lon = route["lon"]
                     # Build a distance list for the route to map climb miles to lat/lon
                     route_prof = cp.get_elevation_profile(source_file)
-                    r_dist = route_prof["distance_mi"] if route_prof["distance_mi"] else []
+                    r_dist = (
+                        route_prof["distance_mi"] if route_prof["distance_mi"] else []
+                    )
 
                     for ci, c in enumerate(climbs, 1):
                         # Find indices closest to start_mi and end_mi
@@ -943,14 +1022,14 @@ def update_route_map(source_file, color_mode):
             center_lon = sum(route["lon"]) / len(route["lon"])
             fig.update_layout(
                 map=dict(
-                    style="carto-darkmatter",
+                    style="open-street-map",
                     center=dict(lat=center_lat, lon=center_lon),
                     zoom=11,
                 ),
             )
 
     fig.update_layout(
-        paper_bgcolor=COLORS["card"],
+        paper_bgcolor="rgba(0,0,0,0)",
         font_color=COLORS["text"],
         height=500,
         margin=dict(t=0, b=0, l=0, r=0),

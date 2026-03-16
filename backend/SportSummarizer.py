@@ -1,31 +1,64 @@
+import json
 import os
 
 import polars as pl
 
 
-class SportSummarizer:
-    def __init__(self, mergedfiles_path):
-        self.mergedfiles_path = mergedfiles_path
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEFAULT_WT_DATA_FILE = os.path.join(
+    _BASE_DIR, "weighttraining_data", "weighttraining_data.json"
+)
 
-    def load_session_data(self, message_type="session_mesgs") -> pl.DataFrame | None:
+
+class SportSummarizer:
+    def __init__(self, mergedfiles_path, wt_data_file=None):
+        self.mergedfiles_path = mergedfiles_path
+        self.wt_data_file = wt_data_file or _DEFAULT_WT_DATA_FILE
+
+    def load_session_data(self, message_type="session_mesgs") -> pl.DataFrame:
+        """Load a merged parquet file, returning an empty DataFrame on failure.
+
+        Guarantees that the three columns used by all SportSummarizer methods
+        (``sport``, ``timestamp``, ``total_timer_time``) are present and typed
+        correctly.  Returns an empty DataFrame (never None) so callers don't
+        need a None guard.
+        """
         file_path = os.path.join(self.mergedfiles_path, f"{message_type}.parquet")
 
         if not os.path.exists(file_path):
-            print(f"Warning: {file_path} not found")
-            return None
+            print(f"  [SportSummarizer] WARNING: {file_path} not found")
+            return pl.DataFrame()
 
         try:
             df = pl.read_parquet(file_path)
-            print(f"Loaded {df.shape[0]} records from {message_type}.parquet")
-            return df
         except Exception as e:
-            print(f"Error loading {message_type}: {e}")
-            return None
+            print(f"  [SportSummarizer] ERROR loading {message_type}: {e}")
+            return pl.DataFrame()
+
+        # Ensure the three columns every method touches are present and typed
+        _required: dict[str, pl.DataType] = {
+            "sport": pl.Utf8,
+            "timestamp": pl.Datetime("us", "UTC"),
+            "total_timer_time": pl.Float64,
+        }
+        for col, dtype in _required.items():
+            if col not in df.columns:
+                df = df.with_columns(pl.Series(col, [None] * len(df), dtype=dtype))
+            elif df[col].dtype != dtype:
+                try:
+                    df = df.with_columns(pl.col(col).cast(dtype))
+                except Exception as exc:
+                    print(
+                        f"  [SportSummarizer] WARNING: cannot cast '{col}' "
+                        f"from {df[col].dtype} → {dtype}: {exc}"
+                    )
+
+        return df
 
     def summarize_hours_by_sport(self, group_by=None, timestamp_col="timestamp"):
         df = self.load_session_data("session_mesgs")
 
-        if df is None:
+        if df.is_empty():
             return None
 
         group_cols = ["sport"]
@@ -205,7 +238,7 @@ class SportSummarizer:
         Returns list of dicts: {sport, label, hours} where label is the period string.
         """
         df = self.load_session_data("session_mesgs")
-        if df is None:
+        if df.is_empty():
             return []
 
         if timestamp_col not in df.columns:
@@ -273,7 +306,7 @@ class SportSummarizer:
         from datetime import date
 
         df = self.load_session_data("session_mesgs")
-        if df is None:
+        if df.is_empty():
             return {"total_hours_ytd": 0, "total_activities_ytd": 0, "sports": []}
 
         if timestamp_col not in df.columns:
@@ -336,3 +369,153 @@ class SportSummarizer:
             "total_activities_ytd": total_activities,
             "sports": sport_stats,
         }
+
+    # ── Calendar ──────────────────────────────────────────────────────────
+
+    # Sport → display color (hex)
+    SPORT_COLORS = {
+        "cycling": "#2196F3",
+        "training": "#FF9800",
+        "weight_lifting": "#FF9800",
+        "rock_climbing": "#4CAF50",
+        "running": "#E91E63",
+        "hiking": "#8BC34A",
+        "alpine_skiing": "#00BCD4",
+        "generic": "#9E9E9E",
+        "racket": "#AB47BC",
+    }
+
+    # Sport → display label
+    SPORT_LABELS = {
+        "cycling": "Cycling",
+        "training": "Lifting",
+        "weight_lifting": "Lifting",
+        "rock_climbing": "Rock Climbing",
+        "running": "Running",
+        "hiking": "Hiking",
+        "alpine_skiing": "Skiing",
+        "generic": "Other",
+        "racket": "Racket",
+    }
+
+    @staticmethod
+    def _fmt_duration(seconds: float) -> str:
+        h = int(seconds // 3600)
+        m = int((seconds % 3600) // 60)
+        if h > 0:
+            return f"{h}h {m}m"
+        return f"{m}m"
+
+    def get_calendar_events(self) -> tuple[list[dict], list[dict]]:
+        """Return (events, raw) for FullCalendar rendering.
+
+        events: list of FullCalendar event dicts with title/start/color.
+        raw:    list of lightweight dicts used by the JS weekly-totals widget
+                (sport, date, seconds, miles).
+        """
+        events: list[dict] = []
+        raw: list[dict] = []
+
+        # ── Weight training JSON (exercise counts per date) ───────────────
+        wt_by_date: dict[str, int] = {}
+        if os.path.exists(self.wt_data_file):
+            try:
+                with open(self.wt_data_file) as f:
+                    wt_data = json.load(f)
+                for entry in wt_data:
+                    wt_by_date[entry["date"]] = len(entry.get("exercises", []))
+            except Exception as e:
+                print(f"  [SportSummarizer] WARNING: could not load wt_data: {e}")
+
+        garmin_lifting_dates: set[str] = set()
+
+        # ── FIT session data ──────────────────────────────────────────────
+        parquet_path = os.path.join(self.mergedfiles_path, "session_mesgs.parquet")
+        if os.path.exists(parquet_path):
+            df = pl.read_parquet(
+                parquet_path,
+                columns=["sport", "timestamp", "total_timer_time", "total_distance"],
+            )
+            ts_col = "timestamp"
+            if df[ts_col].dtype.time_zone is None:
+                df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
+            df = df.with_columns(pl.col(ts_col).dt.convert_time_zone("America/Denver"))
+
+            for row in df.to_dicts():
+                sport = row["sport"] or "generic"
+                label = self.SPORT_LABELS.get(sport, sport.replace("_", " ").title())
+                seconds = row["total_timer_time"] or 0
+                duration = self._fmt_duration(seconds)
+                dist = row.get("total_distance") or 0
+                miles = dist / 1609.344 if dist > 0 else 0
+
+                dt = row[ts_col]
+                date_str = dt.strftime("%Y-%m-%d")
+
+                if sport == "training":
+                    garmin_lifting_dates.add(date_str)
+                    n_ex = wt_by_date.get(date_str)
+                    title = (
+                        f"Lifting ({duration}, {n_ex} exercises)"
+                        if n_ex
+                        else f"Lifting ({duration})"
+                    )
+                    events.append(
+                        {
+                            "title": title,
+                            "start": date_str,
+                            "allDay": True,
+                            "color": self.SPORT_COLORS["weight_lifting"],
+                        }
+                    )
+                elif sport == "cycling" and miles > 1:
+                    title = f"{label} ({duration}, {miles:.1f}mi)"
+                    events.append(
+                        {
+                            "title": title,
+                            "start": date_str,
+                            "allDay": True,
+                            "color": self.SPORT_COLORS.get(sport, "#9E9E9E"),
+                        }
+                    )
+                else:
+                    title = f"{label} ({duration})"
+                    events.append(
+                        {
+                            "title": title,
+                            "start": date_str,
+                            "allDay": True,
+                            "color": self.SPORT_COLORS.get(sport, "#9E9E9E"),
+                        }
+                    )
+
+                raw.append(
+                    {
+                        "sport": self.RENAME_MAP.get(sport, sport),
+                        "date": date_str,
+                        "seconds": seconds,
+                        "miles": miles,
+                    }
+                )
+
+        # ── JSON-only lifting entries (no matching Garmin session) ────────
+        for dt_str, n_ex in wt_by_date.items():
+            if dt_str not in garmin_lifting_dates:
+                events.append(
+                    {
+                        "title": f"Lifting ({n_ex} exercises)",
+                        "start": dt_str,
+                        "allDay": True,
+                        "color": self.SPORT_COLORS["weight_lifting"],
+                    }
+                )
+                raw.append(
+                    {
+                        "sport": "weight_lifting",
+                        "date": dt_str,
+                        "seconds": 0,
+                        "miles": 0,
+                    }
+                )
+
+        return events, raw

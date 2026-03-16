@@ -3,13 +3,18 @@ import os
 import numpy as np
 import polars as pl
 
-from .FitFileProcessor import FitFileProcessor
 from .mixins import (
     CpModelMixin,
     PowerAnalysisMixin,
     RouteAnalysisMixin,
     TrainingLoadMixin,
 )
+from .schemas import load_records, load_sessions
+
+# ── Path resolution (mirrors FitFileProcessor defaults) ──────────────────────
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEFAULT_MERGED_PATH = os.path.join(_BASE_DIR, "mergedfiles")
 
 
 class CyclingProcessor(
@@ -17,12 +22,16 @@ class CyclingProcessor(
     RouteAnalysisMixin,
     CpModelMixin,
     TrainingLoadMixin,
-    FitFileProcessor,
 ):
-    """Process cycling activities from session_mesgs for summary and KPI calculations."""
+    """Query and analyse cycling activities from the merged parquet files.
 
-    def __init__(self, source_folder=None, processedpath=None, mergedfiles_path=None):
-        super().__init__(source_folder, processedpath, mergedfiles_path)
+    This class is a *read-only* query layer.  It does not inherit from
+    FitFileProcessor — FIT file ingestion is handled separately at startup
+    via ``FitFileProcessor.run()`` in app.py.
+    """
+
+    def __init__(self, mergedfiles_path=None):
+        self.mergedfiles_path = mergedfiles_path or _DEFAULT_MERGED_PATH
         self.cycling = self._load_cycling_sessions()
         self._update_power_curve_cache()
         self._update_bootstrap_cache()
@@ -32,10 +41,7 @@ class CyclingProcessor(
     def _load_cycling_sessions(self) -> pl.DataFrame:
         """Load session_mesgs parquet and filter to cycling activities."""
         parquet_path = os.path.join(self.mergedfiles_path, "session_mesgs.parquet")
-        if os.path.exists(parquet_path):
-            session_mesgs = pl.read_parquet(parquet_path)
-            return session_mesgs.filter(pl.col("sport") == "cycling")
-        return pl.DataFrame()
+        return load_sessions("cycling", parquet_path)
 
     def _update_power_curve_cache(self):
         """Compute and cache per-ride best power for each duration in CURVE_DURATIONS.
@@ -70,11 +76,12 @@ class CyclingProcessor(
             return
 
         # Read records for new files only
-        records = (
-            pl.read_parquet(records_path, columns=["source_file", "power", "timestamp"])
-            .filter(pl.col("source_file").is_in(new_files))
-            .sort("source_file", "timestamp")
-        )
+        records = load_records(
+            "cycling",
+            records_path,
+            source_files=list(new_files),
+            columns=["source_file", "power", "timestamp"],
+        ).sort("source_file", "timestamp")
 
         if records.is_empty():
             return
@@ -168,18 +175,27 @@ class CyclingProcessor(
             return None
 
         r = ride.to_dicts()[0]
+
+        avg_power = r.get("avg_power")
+        normalized_power = r.get("normalized_power")
+        avg_cadence = r.get("avg_cadence")
+        threshold_power = r.get("threshold_power")
+        left_right_balance = r.get("left_right_balance")
+
         return {
             "date": r[ts_col].strftime("%Y-%m-%d %I:%M %p"),
             "distance_mi": round(r["total_distance"] / 1609.344, 1),
             "duration_hr": round(r["total_timer_time"] / 3600, 2),
             "total_timer_time_s": r["total_timer_time"],
             "elapsed_hr": round(r["total_elapsed_time"] / 3600, 2),
-            "avg_power": int(r.get("avg_power")),
-            "normalized_power": int(r.get("normalized_power")),
+            "avg_power": int(avg_power) if avg_power is not None else None,
+            "normalized_power": int(normalized_power)
+            if normalized_power is not None
+            else None,
             "avg_speed_mph": round(r["enhanced_avg_speed"] * 2.23694, 1)
             if r.get("enhanced_avg_speed")
             else None,
-            "avg_cadence": int(r.get("avg_cadence")),
+            "avg_cadence": int(avg_cadence) if avg_cadence is not None else None,
             "avg_hr": r.get("avg_heart_rate"),
             "max_hr": r.get("max_heart_rate"),
             "total_ascent_ft": f"{round(r['total_ascent'] * 3.28084):,.0f}"
@@ -195,17 +211,15 @@ class CyclingProcessor(
             if r.get("training_stress_score")
             else None,
             "intensity_factor": r.get("intensity_factor"),
-            "ftp": int(r.get("threshold_power")),
+            "ftp": int(threshold_power) if threshold_power is not None else None,
             "work_kj": f"{round(r['total_work'] / 1000, 0):,.0f}"
             if r.get("total_work")
             else None,
-            "left_balance": round(
-                100 - (int(r["left_right_balance"]) & 0x3FFF) / 100, 1
-            )
-            if r.get("left_right_balance")
+            "left_balance": round(100 - (int(left_right_balance) & 0x3FFF) / 100, 1)
+            if left_right_balance is not None
             else None,
-            "right_balance": round((int(r["left_right_balance"]) & 0x3FFF) / 100, 1)
-            if r.get("left_right_balance")
+            "right_balance": round((int(left_right_balance) & 0x3FFF) / 100, 1)
+            if left_right_balance is not None
             else None,
             "source_file": r.get("source_file"),
         }
@@ -215,14 +229,13 @@ class CyclingProcessor(
     def _load_ride_power(self, source_file: str) -> list[int] | None:
         """Load and clean power data for a single ride from record_mesgs."""
         records_path = os.path.join(self.mergedfiles_path, "record_mesgs.parquet")
-        if not os.path.exists(records_path):
-            return None
 
-        records = (
-            pl.read_parquet(records_path)
-            .filter(pl.col("source_file") == source_file)
-            .sort("timestamp")
-        )
+        records = load_records(
+            "cycling",
+            records_path,
+            source_files=[source_file],
+            columns=["source_file", "power", "timestamp"],
+        ).sort("timestamp")
 
         if records.is_empty() or "power" not in records.columns:
             return None

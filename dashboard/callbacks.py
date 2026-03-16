@@ -4,6 +4,9 @@ from .tabs import (
     calendar_tab,
     climbing_tab,
     cycling_tab,
+    hiking_tab,
+    pickleball_tab,
+    running_tab,
     skiing_tab,
     sports_tab,
     weights_tab,
@@ -18,6 +21,12 @@ def render_tab(tab):
         return cycling_tab()
     elif tab == "climbing":
         return climbing_tab()
+    elif tab == "hiking":
+        return hiking_tab()
+    elif tab == "running":
+        return running_tab()
+    elif tab == "pickleball":
+        return pickleball_tab()
     elif tab == "sports":
         return sports_tab()
     elif tab == "weights":

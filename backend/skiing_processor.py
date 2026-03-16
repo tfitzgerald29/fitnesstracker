@@ -1,56 +1,174 @@
-import polars as pl
 import os
-from .FitFileProcessor import FitFileProcessor
+
+import polars as pl
+
+from .schemas import load_sessions
+
+# ── Path resolution (mirrors FitFileProcessor defaults) ──────────────────────
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEFAULT_MERGED_PATH = os.path.join(_BASE_DIR, "mergedfiles")
 
 
-class skiing(FitFileProcessor):
-    def __init__(
-        self, source_folder=None, processedpath=None, mergedfiles_path=None
-    ) -> None:
-        super().__init__(source_folder, processedpath, mergedfiles_path)
+class skiing:
+    """Read-only query layer for alpine skiing sessions.
+
+    Does not inherit from FitFileProcessor — FIT ingestion is handled
+    separately at startup via FitFileProcessor.run() in app.py.
+    """
+
+    def __init__(self, mergedfiles_path=None) -> None:
+        self.mergedfiles_path = mergedfiles_path or _DEFAULT_MERGED_PATH
         self.skiing = self.load_skiing_data()
 
-    def load_skiing_data(self):
-        # parquet_path = os.path.join(self.mergedfiles_path, "split_mesgs.parquet")
+    # ── Data loading ──────────────────────────────────────────────────────────
+
+    def load_skiing_data(self) -> pl.DataFrame:
         parquet_path = os.path.join(self.mergedfiles_path, "session_mesgs.parquet")
-        if os.path.exists(parquet_path):
-            session_mesgs = (
-                pl.read_parquet(parquet_path)
-                .filter(pl.col("sport") == "alpine_skiing")
-                .select(
-                    "timestamp",
-                    "total_elapsed_time",
-                    "total_distance",
-                    "sport_profile_name",
-                    "avg_speed",
-                    "max_speed",
-                    "total_ascent",
-                    "total_descent",
-                    "num_laps",
-                    "event",
-                    "event_type",
-                    "sport",
-                    "sub_sport",
-                    "trigger",
-                    "avg_temperature",
-                    "max_temperature",
-                    "min_temperature",
-                    "enhanced_max_speed",
-                    "enhanced_avg_speed",
-                    "source_file",
-                    "avg_heart_rate",
-                    "max_heart_rate",
-                    "total_moving_time",
-                )
-                .with_columns(
-                    pl.col("timestamp")
-                    .dt.convert_time_zone("America/Denver")
-                    .dt.date()
-                    .alias("DT_DENVER")
-                )
+        df = load_sessions("skiing", parquet_path)
+        if df.is_empty():
+            return df
+        ts_col = "timestamp"
+        if df[ts_col].dtype.time_zone is None:
+            df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
+        return df.with_columns(
+            pl.col(ts_col)
+            .dt.convert_time_zone("America/Denver")
+            .dt.date()
+            .alias("DT_DENVER")
+        )
+
+    # ── Season helpers ─────────────────────────────────────────────────────────
+
+    def _with_season(self) -> pl.DataFrame:
+        """Return the skiing DataFrame with a ``season`` string column added."""
+        return self.skiing.with_columns(
+            pl.when(pl.col("DT_DENVER").dt.month() >= 10)
+            .then(pl.col("DT_DENVER").dt.year())
+            .otherwise(pl.col("DT_DENVER").dt.year() - 1)
+            .alias("_season_start")
+        ).with_columns(
+            (
+                pl.col("_season_start").cast(pl.Utf8)
+                + "-"
+                + (pl.col("_season_start") + 1).cast(pl.Utf8).str.slice(2)
+            ).alias("season")
+        )
+
+    # ── Summary / listing methods ─────────────────────────────────────────────
+
+    def summary_stats(self) -> dict:
+        """Overall totals across all seasons."""
+        df = self._with_season()
+        if df.is_empty():
+            return {}
+        seasons = df["season"].n_unique()
+        total_days = df["DT_DENVER"].n_unique()
+        total_laps = int(df["num_laps"].drop_nulls().sum())
+        total_descent_ft = round(df["total_descent"].drop_nulls().sum() * 3.28084)
+        max_speed_mph = round(df["enhanced_max_speed"].drop_nulls().max() * 2.23694, 1)
+        return {
+            "total_days": total_days,
+            "total_seasons": seasons,
+            "total_descent_ft": total_descent_ft,
+            "total_laps": total_laps,
+            "max_speed_mph": max_speed_mph,
+        }
+
+    def list_sessions(self) -> list[dict]:
+        """All sessions sorted most-recent-first, with season tag for filtering."""
+        df = self._with_season().sort("DT_DENVER", descending=True)
+        result = []
+        for r in df.to_dicts():
+            laps = int(r["num_laps"]) if r.get("num_laps") else 0
+            descent = (
+                f"{int(r['total_descent'] * 3.28084):,} ft"
+                if r.get("total_descent")
+                else "—"
             )
-            return session_mesgs
-        return pl.DataFrame()
+            profile = r.get("sport_profile_name") or "Ski"
+            label = f"{r['DT_DENVER']} — {profile} — {laps} laps — {descent}"
+            result.append(
+                {
+                    "label": label,
+                    "value": r["source_file"],
+                    "season": r["season"],
+                }
+            )
+        return result
+
+    def get_ski_route(self, source_file: str) -> dict:
+        """Return GPS route data for a single ski session.
+
+        Returns ``{lat, lon, elevation_ft, speed_mph, heart_rate}``.
+        lat/lon are converted from FIT semicircles to decimal degrees.
+        elevation_ft = enhanced_altitude × 3.28084
+        speed_mph    = enhanced_speed   × 2.23694
+        """
+        records_path = os.path.join(self.mergedfiles_path, "record_mesgs.parquet")
+        empty: dict = {
+            "lat": [],
+            "lon": [],
+            "elevation_ft": [],
+            "speed_mph": [],
+            "heart_rate": [],
+        }
+        if not os.path.exists(records_path):
+            return empty
+
+        SEMICIRCLES_TO_DEGREES = 180.0 / (2**31)
+
+        records = (
+            pl.read_parquet(
+                records_path,
+                columns=[
+                    "source_file",
+                    "timestamp",
+                    "position_lat",
+                    "position_long",
+                    "enhanced_altitude",
+                    "enhanced_speed",
+                    "heart_rate",
+                ],
+            )
+            .filter(pl.col("source_file") == source_file)
+            .sort("timestamp")
+        )
+
+        if records.is_empty():
+            return empty
+
+        gps = records.filter(pl.col("position_lat").is_not_null())
+        if gps.is_empty():
+            return empty
+
+        lat = (gps["position_lat"] * SEMICIRCLES_TO_DEGREES).to_list()
+        lon = (gps["position_long"] * SEMICIRCLES_TO_DEGREES).to_list()
+        elevation_ft = (
+            (gps["enhanced_altitude"] * 3.28084).to_list()
+            if "enhanced_altitude" in gps.columns
+            else [None] * len(lat)
+        )
+        speed_mph = (
+            (gps["enhanced_speed"] * 2.23694).to_list()
+            if "enhanced_speed" in gps.columns
+            else [None] * len(lat)
+        )
+        heart_rate = (
+            gps["heart_rate"].to_list()
+            if "heart_rate" in gps.columns
+            else [None] * len(lat)
+        )
+
+        return {
+            "lat": lat,
+            "lon": lon,
+            "elevation_ft": elevation_ft,
+            "speed_mph": speed_mph,
+            "heart_rate": heart_rate,
+        }
+
+    # ── Legacy aggregation methods (kept for reference) ───────────────────────
 
     @staticmethod
     def _fmt_ride_time(seconds):
@@ -81,20 +199,7 @@ class skiing(FitFileProcessor):
         return df.sort("DT_DENVER", descending=True)
 
     def annual_summary(self):
-        # Ski season: Oct–Apr → e.g. Oct 2024–Apr 2025 = "2024-25"
-        df = self.skiing.with_columns(
-            pl.when(pl.col("DT_DENVER").dt.month() >= 10)
-            .then(pl.col("DT_DENVER").dt.year())
-            .otherwise(pl.col("DT_DENVER").dt.year() - 1)
-            .alias("_season_start")
-        ).with_columns(
-            (
-                pl.col("_season_start").cast(pl.Utf8)
-                + "-"
-                + (pl.col("_season_start") + 1).cast(pl.Utf8).str.slice(2)
-            ).alias("season")
-        )
-
+        df = self._with_season()
         result = df.group_by("season").agg(
             pl.col("DT_DENVER").min().alias("first_day"),
             pl.col("DT_DENVER").max().alias("last_day"),

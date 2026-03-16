@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import polars as pl
 from dash import Input, Output, callback, dash_table, dcc, html
 
+from backend.schemas import load_sessions, load_splits, load_split_summaries
 from ..config import CARD_STYLE, COLORS, MERGED_PATH
 
 FEET_PER_ROUTE = 45
@@ -15,26 +16,14 @@ def _load_climbing_data():
     splits_path = os.path.join(MERGED_PATH, "split_mesgs.parquet")
     summaries_path = os.path.join(MERGED_PATH, "split_summary_mesgs.parquet")
 
-    if not os.path.exists(sessions_path):
-        return None, None, None
-
-    sessions = pl.read_parquet(sessions_path).filter(pl.col("sport") == "rock_climbing")
+    sessions = load_sessions("climbing", sessions_path)
     if sessions.is_empty():
         return sessions, pl.DataFrame(), pl.DataFrame()
 
-    climbing_files = set(sessions["source_file"].unique().to_list())
+    climbing_files = sessions["source_file"].unique().to_list()
 
-    splits = pl.DataFrame()
-    if os.path.exists(splits_path):
-        splits = pl.read_parquet(splits_path).filter(
-            pl.col("source_file").is_in(climbing_files)
-        )
-
-    summaries = pl.DataFrame()
-    if os.path.exists(summaries_path):
-        summaries = pl.read_parquet(summaries_path).filter(
-            pl.col("source_file").is_in(climbing_files)
-        )
+    splits = load_splits(splits_path, source_files=climbing_files)
+    summaries = load_split_summaries(summaries_path, source_files=climbing_files)
 
     return sessions, splits, summaries
 
@@ -146,7 +135,7 @@ def update_climbing_overview(tab):
 
     sessions, splits, _summaries = _load_climbing_data()
 
-    if sessions is None or sessions.is_empty():
+    if sessions.is_empty():
         return (
             [html.Div("No climbing data found.", style={"color": COLORS["muted"]})],
             [],
@@ -278,7 +267,7 @@ def update_climbing_session(source_file):
         return []
 
     sessions, splits, _summaries = _load_climbing_data()
-    if sessions is None or sessions.is_empty():
+    if sessions.is_empty():
         return []
 
     # Session summary
