@@ -9,19 +9,19 @@ _DEFAULT_DATA_FILE = os.path.join(
 
 class WeightTrainingLog:
     def __init__(self, data_file=None):
-        self.DATA_FILE = data_file or _DEFAULT_DATA_FILE
+        self.data_file = data_file or _DEFAULT_DATA_FILE
         self.log = self._load()
 
     def _load(self):
-        if os.path.exists(self.DATA_FILE):
-            with open(self.DATA_FILE, "r") as f:
+        if os.path.exists(self.data_file):
+            with open(self.data_file, "r") as f:
                 return json.load(f)
         return []
 
     def save(self):
-        with open(self.DATA_FILE, "w") as f:
+        with open(self.data_file, "w") as f:
             json.dump(self.log, f, indent=2)
-        print(f"Saved {len(self.log)} total entries to {self.DATA_FILE}")
+        print(f"Saved {len(self.log)} total entries to {self.data_file}")
 
     def get_exercise_names(self):
         return sorted({ex["name"] for entry in self.log for ex in entry["exercises"]})
@@ -53,7 +53,7 @@ class WeightTrainingLog:
 
 if __name__ == "__main__":
     wt = WeightTrainingLog()
-    print(f"Data file: {wt.DATA_FILE}")
+    print(f"Data file: {wt.data_file}")
     print(f"Existing entries: {len(wt.log)}")
     wt.print_exercise_names()
 
