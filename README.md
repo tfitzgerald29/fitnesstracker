@@ -2,6 +2,8 @@
 
 A Dash-based personal activity dashboard that ingests Garmin FIT files to track cycling, climbing, running, weight lifting, and other sports. Includes cycling power analysis, critical power modeling with bootstrap inference, training load tracking, and a custom weight lifting form for logging exercises, sets, reps, and weight to track gym progress over time.
 
+link to plotly hosted dashboard (not current): https://526068ff-66c1-4f99-8a31-aa9c4b1da937.plotly.app
+
 ## Quick Start
 
 ```bash
