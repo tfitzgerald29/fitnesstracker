@@ -72,8 +72,16 @@ class skiing:
         }
 
     def list_sessions(self) -> list[dict]:
-        """All sessions sorted most-recent-first, with season tag for filtering."""
-        df = self._with_season().sort("DT_DENVER", descending=True)
+        """All sessions sorted most-recent-first, with season tag for filtering.
+
+        Trimmed to the last year to match the record_mesgs window so every
+        session shown has route/GPS detail data available.
+        """
+        from datetime import date, timedelta
+
+        cutoff = date.today() - timedelta(days=365)
+        df = self._with_season().filter(pl.col("DT_DENVER") >= cutoff)
+        df = df.sort("DT_DENVER", descending=True)
         result = []
         for r in df.to_dicts():
             laps = int(r["num_laps"]) if r.get("num_laps") else 0

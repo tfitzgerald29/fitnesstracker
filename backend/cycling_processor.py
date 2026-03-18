@@ -142,12 +142,26 @@ class CyclingProcessor(
     # ── Ride listing & summary ────────────────────────────────────────────
 
     def list_rides(self) -> list[dict]:
-        """Return a list of rides with label and timestamp for dropdown selection."""
+        """Return a list of rides with label and timestamp for dropdown selection.
+
+        Only rides within the last year are included — this matches the
+        record_mesgs.parquet window so every ride shown has detail data
+        (elevation, power, route) available.
+        """
+        from datetime import date, timedelta
+
         df = self.cycling.clone()
         if df.is_empty():
             return []
 
         ts_col = "timestamp"
+        # Trim to the same 1-year window used for record_mesgs so the rides
+        # dropdown never shows a ride whose detail data has been filtered out.
+        cutoff = date.today() - timedelta(days=365)
+        df = df.filter(pl.col(ts_col).dt.date() >= cutoff)
+        if df.is_empty():
+            return []
+
         if df[ts_col].dtype.time_zone is None:
             df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
         df = df.with_columns(pl.col(ts_col).dt.convert_time_zone("America/Denver"))

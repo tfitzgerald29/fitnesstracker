@@ -31,8 +31,16 @@ class RunningProcessor:
         )
 
     def list_runs(self) -> list[dict]:
-        """Return runs sorted most-recent-first for a dropdown."""
-        df = self.running.sort("timestamp", descending=True)
+        """Return runs sorted most-recent-first for a dropdown.
+
+        Trimmed to the last year to match the record_mesgs window so every
+        run shown has route/elevation detail data available.
+        """
+        from datetime import date, timedelta
+
+        cutoff = date.today() - timedelta(days=365)
+        df = self.running.filter(pl.col("timestamp").dt.date() >= cutoff)
+        df = df.sort("timestamp", descending=True)
         result = []
         for r in df.to_dicts():
             dt = r["timestamp"]
