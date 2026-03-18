@@ -1,5 +1,6 @@
 import os
 
+import gc
 import polars as pl
 
 from ..schemas import load_records
@@ -30,11 +31,15 @@ class RouteAnalysisMixin:
         ).sort("timestamp")
 
         if records.is_empty():
+            del records
+            gc.collect()
             return {"distance_mi": [], "altitude_ft": [], "grade_pct": []}
 
         has_alt = "enhanced_altitude" in records.columns
         has_dist = "distance" in records.columns
         if not has_alt or not has_dist:
+            del records
+            gc.collect()
             return {"distance_mi": [], "altitude_ft": [], "grade_pct": []}
 
         df = (
@@ -47,6 +52,8 @@ class RouteAnalysisMixin:
         )  # drop any leading nulls that couldn't be forward-filled
 
         if df.height < 2:
+            del records, df
+            gc.collect()
             return {"distance_mi": [], "altitude_ft": [], "grade_pct": []}
 
         dist_m = df["distance"].to_list()
@@ -68,12 +75,15 @@ class RouteAnalysisMixin:
         distance_mi = [d / 1609.344 for d in dist_m]
         altitude_ft = [a * 3.28084 for a in alt_m]
 
-        return {
+        result = {
             "distance_mi": distance_mi,
             "altitude_ft": altitude_ft,
             "grade_pct": smoothed,
             "grade_instant": instant,
         }
+        del dist_m, alt_m, grade, smoothed, instant, records, df
+        gc.collect()
+        return result
 
     def detect_climbs(
         self,
@@ -109,12 +119,16 @@ class RouteAnalysisMixin:
         ).sort("timestamp")
 
         if records.is_empty():
+            del records
+            gc.collect()
             return []
 
         has_alt = "enhanced_altitude" in records.columns
         has_dist = "distance" in records.columns
         has_ts = "timestamp" in records.columns
         if not has_alt or not has_dist:
+            del records
+            gc.collect()
             return []
 
         has_power = "power" in records.columns
@@ -135,6 +149,8 @@ class RouteAnalysisMixin:
         )
 
         if df.height < 2:
+            del records, df
+            gc.collect()
             return []
 
         dist_m = df["distance"].to_list()
@@ -259,6 +275,19 @@ class RouteAnalysisMixin:
 
         # Sort by position along the route
         climbs.sort(key=lambda c: c["start_mi"])
+        del (
+            records,
+            df,
+            grade,
+            smoothed,
+            instant,
+            dist_m,
+            alt_m,
+            timestamps,
+            power_list,
+            cadence_list,
+        )
+        gc.collect()
         return climbs
 
     def get_ride_route(self, source_file: str) -> dict:
@@ -282,10 +311,14 @@ class RouteAnalysisMixin:
         ).sort("timestamp")
 
         if records.is_empty() or "position_lat" not in records.columns:
+            del records
+            gc.collect()
             return {"lat": [], "lon": [], "power": [], "elevation": []}
 
         gps = records.filter(pl.col("position_lat").is_not_null())
         if gps.is_empty():
+            del records, gps
+            gc.collect()
             return {"lat": [], "lon": [], "power": [], "elevation": []}
 
         lat = (gps["position_lat"] * self.SEMICIRCLES_TO_DEGREES).to_list()
@@ -297,4 +330,7 @@ class RouteAnalysisMixin:
             else []
         )
 
-        return {"lat": lat, "lon": lon, "power": power, "elevation": elevation}
+        result = {"lat": lat, "lon": lon, "power": power, "elevation": elevation}
+        del records, gps
+        gc.collect()
+        return result

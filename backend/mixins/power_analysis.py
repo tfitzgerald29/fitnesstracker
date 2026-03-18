@@ -1,3 +1,4 @@
+import gc
 import polars as pl
 
 
@@ -6,9 +7,16 @@ class PowerAnalysisMixin:
 
     # Standard durations for peak power cards
     PEAK_DURATIONS = [
-        (5, "5s"), (30, "30s"), (60, "1min"), (300, "5min"),
-        (600, "10min"), (1200, "20min"), (1800, "30min"), (3600, "60min"),
-        (5400, "90min"), (7200, "120min"),
+        (5, "5s"),
+        (30, "30s"),
+        (60, "1min"),
+        (300, "5min"),
+        (600, "10min"),
+        (1200, "20min"),
+        (1800, "30min"),
+        (3600, "60min"),
+        (5400, "90min"),
+        (7200, "120min"),
     ]
 
     # Standard power zones as % of FTP
@@ -34,8 +42,35 @@ class PowerAnalysisMixin:
 
     # Sparse durations for power curve chart display: 1s–2hr
     CHART_DURATIONS = [
-        1, 2, 3, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300,
-        360, 420, 480, 540, 600, 720, 900, 1200, 1500, 1800, 2400, 3600, 5400, 7200,
+        1,
+        2,
+        3,
+        5,
+        10,
+        15,
+        20,
+        30,
+        45,
+        60,
+        90,
+        120,
+        180,
+        240,
+        300,
+        360,
+        420,
+        480,
+        540,
+        600,
+        720,
+        900,
+        1200,
+        1500,
+        1800,
+        2400,
+        3600,
+        5400,
+        7200,
     ]
 
     def get_peak_powers(self, source_file: str) -> list[dict]:
@@ -50,7 +85,9 @@ class PowerAnalysisMixin:
                 results.append({"duration": label, "watts": "N/A"})
             else:
                 watts = self._best_avg_power(power, window)
-                results.append({"duration": label, "watts": watts if watts is not None else "N/A"})
+                results.append(
+                    {"duration": label, "watts": watts if watts is not None else "N/A"}
+                )
         return results
 
     def get_power_histogram(self, source_file: str, bin_size: int = 25) -> dict:
@@ -64,7 +101,11 @@ class PowerAnalysisMixin:
 
         # Get FTP from the ride's session data
         ride = self.cycling.filter(pl.col("source_file") == source_file)
-        ftp = ride["threshold_power"][0] if not ride.is_empty() and ride["threshold_power"][0] else 250
+        ftp = (
+            ride["threshold_power"][0]
+            if not ride.is_empty() and ride["threshold_power"][0]
+            else 250
+        )
 
         max_power = max(power)
         bins = list(range(0, max_power + bin_size, bin_size))
@@ -88,16 +129,28 @@ class PowerAnalysisMixin:
                     break
             zone_colors.append(color)
 
+        del ride
+        gc.collect()
         return {"bins": bins, "counts": counts, "zone_colors": zone_colors}
 
     def get_power_zone_distribution(self, source_file: str) -> dict:
         """Return time-in-zone distribution: {zones: [], seconds: [], percentages: [], colors: [], ftp: int}."""
         power = self._load_ride_power(source_file)
         if not power:
-            return {"zones": [], "seconds": [], "percentages": [], "colors": [], "ftp": None}
+            return {
+                "zones": [],
+                "seconds": [],
+                "percentages": [],
+                "colors": [],
+                "ftp": None,
+            }
 
         ride = self.cycling.filter(pl.col("source_file") == source_file)
-        ftp = ride["threshold_power"][0] if not ride.is_empty() and ride["threshold_power"][0] else 250
+        ftp = (
+            ride["threshold_power"][0]
+            if not ride.is_empty() and ride["threshold_power"][0]
+            else 250
+        )
 
         zone_seconds = [0] * len(self.POWER_ZONES)
         total = len(power)
@@ -116,6 +169,10 @@ class PowerAnalysisMixin:
         percentages = [round(s / total * 100, 1) if total else 0 for s in zone_seconds]
         zones = [name for name, _, _ in self.POWER_ZONES]
 
+        del ride
+        gc.collect()
+        del session
+        gc.collect()
         return {
             "zones": zones,
             "seconds": zone_seconds,
@@ -150,7 +207,14 @@ class PowerAnalysisMixin:
         """
         power = self._load_ride_power(source_file)
         if not power:
-            return {"time_min": [], "wprime_bal_kj": [], "wprime_pct": [], "power": [], "ftp": 0, "wprime_kj": 0}
+            return {
+                "time_min": [],
+                "wprime_bal_kj": [],
+                "wprime_pct": [],
+                "power": [],
+                "ftp": 0,
+                "wprime_kj": 0,
+            }
 
         # Get the ride date to use as reference for the CP model
         import polars as pl
@@ -196,6 +260,8 @@ class PowerAnalysisMixin:
         bal_kj = [b / 1000.0 for b in bal]
         bal_pct = [b / wp * 100.0 for b in bal]
 
+        del session
+        gc.collect()
         return {
             "time_min": time_min,
             "wprime_bal_kj": bal_kj,
