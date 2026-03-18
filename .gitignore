@@ -23,6 +23,7 @@ __pycache__/
 *.pyo
 .venv/
 env/
+loadtoaws.py
 
 # macOS
 .DS_Store
