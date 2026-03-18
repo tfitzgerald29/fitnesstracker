@@ -361,8 +361,12 @@ class CpModelMixin:
             pl.col(ts_col).dt.convert_time_zone("America/Denver"),
         )
 
-        # Load power curves and join with session timestamps + training data
-        curves = storage.read_parquet(cache_path)
+        # Load power curves and join with session timestamps + training data.
+        # source_file is Categorical in the cache; cast to String so it joins
+        # with self.cycling (session_mesgs) which has source_file as String.
+        curves = storage.read_parquet(cache_path).with_columns(
+            pl.col("source_file").cast(pl.String)
+        )
         dur_cols = {
             f"d_{d}": label for d, label in self.PEAK_REGRESSION_DURATIONS.items()
         }
@@ -542,7 +546,10 @@ class CpModelMixin:
             pl.col(ts_col).dt.convert_time_zone("America/Denver"),
         )
 
-        curves = storage.read_parquet(cache_path)
+        # Cast source_file Categorical → String to match session_mesgs dtype.
+        curves = storage.read_parquet(cache_path).with_columns(
+            pl.col("source_file").cast(pl.String)
+        )
         dur_cols = {
             f"d_{d}": label for d, label in self.PEAK_REGRESSION_DURATIONS.items()
         }
