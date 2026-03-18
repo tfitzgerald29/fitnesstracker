@@ -10,12 +10,12 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # (lookback_years, date_column, is_string).
 # is_string=True means the column is stored as "YYYY-MM-DD" text (sleep.parquet).
 # is_string=False means the column is a Datetime/Date dtype.
-# record_mesgs is limited to 1 year — it's raw per-second telemetry and the
-# dashboard never looks back further than 12 months for ride-detail views.
+# record_mesgs is limited to 6 months — it's raw per-second telemetry and the
+# dashboard never looks back further than 6 months for ride-detail views.
 # Everything else uses 4 years to cover all aggregate charts.
 _DATE_FILTERS: dict[str, tuple[int, str, bool]] = {
     "session_mesgs.parquet": (4, "timestamp", False),
-    "record_mesgs.parquet": (1, "timestamp", False),
+    "record_mesgs.parquet": (0.5, "timestamp", False),
     "set_mesgs.parquet": (4, "timestamp", False),
     "activity_mesgs.parquet": (4, "timestamp", False),
     "split_mesgs.parquet": (4, "start_time", False),
@@ -160,69 +160,51 @@ class StorageConfig:
             pass
 
     def read_parquet(self, path: str, **kwargs) -> object:
-        """Read a parquet file, using an in-memory cache in S3 mode.
+        """Read a parquet file with caching + per-file date filtering.
 
-        In local mode, falls through to pl.read_parquet directly (fast disk).
-        In S3 mode, caches the DataFrame so repeated callback calls don't
-        re-fetch from S3 on every request.
+        Uses ``scan_parquet`` so filters are pushed down before the data is
+        materialised, which dramatically reduces the memory footprint when
+        reading the large ``record_mesgs.parquet`` file.  ``columns`` can be
+        supplied to read only the necessary fields (these column-filtered
+        reads never populate the cache).
 
-        Column-filtered reads (``columns=`` kwarg): if the cached DataFrame
-        already contains those columns, the filter is applied in-memory
-        instead of going back to S3.  On a cache miss the full DataFrame is
-        fetched, transformed (see below), cached, and then the column slice
-        is returned — so every subsequent caller benefits.
-
-        Transformations applied on first load (both local and S3 mode):
-
-        Date filter (_LOOKBACK_YEARS, default 3):
-            Rows older than ``today - LOOKBACK_YEARS * 365 days`` are dropped
-            from session_mesgs, record_mesgs, set_mesgs, activity_mesgs,
-            split_mesgs, and sleep.  This bounds memory and keeps charts
-            focused on recent data.  Override by setting DATA_LOOKBACK_YEARS
-            in the environment.  power_curves.parquet is not directly filtered
-            here — stale ride rows are excluded because the corresponding
-            source_files no longer appear in the trimmed session_mesgs cache.
-
-        record_mesgs column slimming:
-            Only the 10 columns used by the codebase are kept; numeric
-            columns are downcast Float64 → Float32; source_file is cast to
-            Categorical.  Reduces ~1.3 GB → ~185 MB in-memory.
-
-        source_file Categorical:
-            Both record_mesgs and power_curves cast source_file to Categorical
-            so in-memory joins between them work without dtype errors.
-        """
+        Date filters and dtype tweaks are applied on first full loads (see
+        ``_DATE_FILTERS`` and the record/power curve transformations)."""
         import polars as pl
 
         columns = kwargs.pop("columns", None)
 
-        # ── Cache lookup (S3 mode only) ───────────────────────────────────
+        suffix = path.split("/")[-1]
+        date_cfg = _DATE_FILTERS.get(suffix)
+
+        def _collect_filtered(scan: pl.LazyFrame) -> pl.DataFrame:
+            if date_cfg is not None:
+                years, date_col, is_string = date_cfg
+                cutoff = date.today() - timedelta(days=years * 365)
+                if date_col in scan.columns:
+                    predicate = (
+                        pl.col(date_col) >= str(cutoff)
+                        if is_string
+                        else pl.col(date_col).dt.date() >= cutoff
+                    )
+                    scan = scan.filter(predicate)
+            df = scan.collect()
+            return df
+
+        def _initial_scan() -> pl.LazyFrame:
+            scan = pl.scan_parquet(path)
+            if columns is not None:
+                scan = scan.select(columns)
+            return scan
+
         if self.is_s3():
             with self._cache_lock:
                 cached = self._parquet_cache.get(path)
-
-            if cached is not None:
-                if columns is not None:
-                    available = [c for c in columns if c in cached.columns]
-                    return cached.select(available)
+            if cached is not None and columns is None:
                 return cached
 
-        # ── Fetch from disk / S3 ─────────────────────────────────────────
-        df = pl.read_parquet(path, **kwargs)
+        df = _collect_filtered(_initial_scan())
 
-        # ── Date filter ───────────────────────────────────────────────────
-        suffix = path.split("/")[-1]
-        date_cfg = _DATE_FILTERS.get(suffix)
-        if date_cfg is not None:
-            years, date_col, is_string = date_cfg
-            if date_col in df.columns:
-                cutoff = date.today() - timedelta(days=years * 365)
-                if is_string:
-                    df = df.filter(pl.col(date_col) >= str(cutoff))
-                else:
-                    df = df.filter(pl.col(date_col).dt.date() >= cutoff)
-
-        # ── record_mesgs column slimming + dtype optimisation ─────────────
         if suffix == "record_mesgs.parquet":
             keep = [c for c in _RECORD_MESGS_KEEP_COLS if c in df.columns]
             df = df.select(keep)
@@ -231,18 +213,15 @@ class StorageConfig:
                 df = df.with_columns([pl.col(c).cast(pl.Float32) for c in f32])
             df = df.with_columns(pl.col("source_file").cast(pl.Categorical))
 
-        # ── Categorical source_file for power_curves ──────────────────────
         if suffix == "power_curves.parquet" and "source_file" in df.columns:
             df = df.with_columns(pl.col("source_file").cast(pl.Categorical))
 
-        # ── Store in cache (S3 mode only) ─────────────────────────────────
-        if self.is_s3():
+        if self.is_s3() and columns is None:
             with self._cache_lock:
                 self._parquet_cache[path] = df
 
         if columns is not None:
-            available = [c for c in columns if c in df.columns]
-            return df.select(available)
+            return df.select(columns)
         return df
 
     def write_parquet(self, df: object, path: str) -> None:

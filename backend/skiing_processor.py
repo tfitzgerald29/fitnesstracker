@@ -79,7 +79,7 @@ class skiing:
         """
         from datetime import date, timedelta
 
-        cutoff = date.today() - timedelta(days=365)
+        cutoff = date.today() - timedelta(days=182)
         df = self._with_season().filter(pl.col("DT_DENVER") >= cutoff)
         df = df.sort("DT_DENVER", descending=True)
         result = []

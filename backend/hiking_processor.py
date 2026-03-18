@@ -38,7 +38,7 @@ class HikingProcessor:
         """
         from datetime import date, timedelta
 
-        cutoff = date.today() - timedelta(days=365)
+        cutoff = date.today() - timedelta(days=182)
         df = self.hiking.filter(pl.col("timestamp").dt.date() >= cutoff)
         df = df.sort("timestamp", descending=True)
         result = []

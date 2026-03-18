@@ -157,7 +157,7 @@ class CyclingProcessor(
         ts_col = "timestamp"
         # Trim to the same 1-year window used for record_mesgs so the rides
         # dropdown never shows a ride whose detail data has been filtered out.
-        cutoff = date.today() - timedelta(days=365)
+        cutoff = date.today() - timedelta(days=182)
         df = df.filter(pl.col(ts_col).dt.date() >= cutoff)
         if df.is_empty():
             return []
