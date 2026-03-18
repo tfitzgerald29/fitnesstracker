@@ -5,6 +5,8 @@ output/
 mergedfiles/record_mesgs_full.parquet
 mergedfiles/tcx_record_mesgs.parquet
 mergedfiles/tcx_session_mesgs.parquet
+sleepdata/
+tests/
 
 # Notebooks
 *.ipynb

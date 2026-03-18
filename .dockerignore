@@ -13,11 +13,14 @@ env/
 .ruff_cache
 
 # Local data — never baked into the image
-mergedfiles/
-processedfiles/
 garminfitfiles/
-weighttraining_data/
-
+processedfiles/
+output/
+mergedfiles/record_mesgs_full.parquet
+mergedfiles/tcx_record_mesgs.parquet
+mergedfiles/tcx_session_mesgs.parquet
+sleepdata/
+tests/
 # Secrets — never baked into the image
 .env
 .env.*
@@ -26,9 +29,9 @@ weighttraining_data/
 *.ipynb
 main.py
 removeoldfiles.py
+backend/tcx_import.py
 tcx_file_processor_NB.py
-tests/
-
+loadtoaws.py
 # macOS
 .DS_Store
 
