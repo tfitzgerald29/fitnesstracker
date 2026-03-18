@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+env/
+.pytest_cache
+.ruff_cache
+
+# Local data — never baked into the image
+mergedfiles/
+processedfiles/
+garminfitfiles/
+weighttraining_data/
+
+# Secrets — never baked into the image
+.env
+.env.*
+
+# Notebooks and dev scripts
+*.ipynb
+main.py
+removeoldfiles.py
+tcx_file_processor_NB.py
+tests/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+
+# Misc
+plotly-cloud.toml
+uv.lock

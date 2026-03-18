@@ -32,7 +32,8 @@ env/
 
 # Secrets
 .env
-.env.*
+.env.local
+.env.production
 
 # Tool config
 .python-version
