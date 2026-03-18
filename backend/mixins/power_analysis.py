@@ -171,7 +171,6 @@ class PowerAnalysisMixin:
 
         del ride
         gc.collect()
-        del session
         gc.collect()
         return {
             "zones": zones,

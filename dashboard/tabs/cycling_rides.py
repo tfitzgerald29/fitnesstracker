@@ -6,6 +6,33 @@ from backend.cycling_processor import CyclingProcessor
 
 from ..config import CARD_STYLE, COLORS, get_user_id
 
+_RIDE_PROCESSOR_CACHE: dict[str, CyclingProcessor] = {}
+
+
+def _processor_key(user_id: str | None, ride_ts: str | None) -> str | None:
+    if not ride_ts:
+        return None
+    return f"{user_id or '__local__'}:{ride_ts}"
+
+
+def _get_cached_processor(user_id: str | None, ride_ts: str | None) -> CyclingProcessor:
+    key = _processor_key(user_id, ride_ts)
+    if not key:
+        return CyclingProcessor(user_id=user_id)
+
+    proc = _RIDE_PROCESSOR_CACHE.get(key)
+    if proc is None:
+        proc = CyclingProcessor(user_id=user_id)
+        _RIDE_PROCESSOR_CACHE.clear()
+        _RIDE_PROCESSOR_CACHE[key] = proc
+    return proc
+
+
+def _normalize_ride_data(value):
+    if isinstance(value, dict):
+        return value.get("source_file"), value.get("ride_ts")
+    return value, None
+
 
 def _fmt_ride_time(seconds):
     """Format total ride time seconds into Xh Xm Xs."""
@@ -135,7 +162,7 @@ def update_ride_detail(ride_ts, user_data):
             "Select a ride to view details.", style={"color": COLORS["muted"]}
         )
 
-    cp = CyclingProcessor(user_id=get_user_id(user_data))
+    cp = _get_cached_processor(get_user_id(user_data), ride_ts)
     s = cp.get_ride_summary(ride_ts)
     if not s:
         return html.Div("Ride not found.", style={"color": COLORS["muted"]})
@@ -305,7 +332,13 @@ def update_ride_detail(ride_ts, user_data):
                 inputStyle={"marginRight": "4px"},
                 style={"marginBottom": "12px"},
             ),
-            dcc.Store(id="ride-source-file", data=s.get("source_file")),
+            dcc.Store(
+                id="ride-source-file",
+                data={
+                    "source_file": s.get("source_file"),
+                    "ride_ts": ride_ts,
+                },
+            ),
             html.Div(dcc.Graph(id="power-curve-chart"), style=CARD_STYLE),
         ]
     )
@@ -317,8 +350,9 @@ def update_ride_detail(ride_ts, user_data):
     Input("power-curve-compare", "value"),
     State("user-store", "data"),
 )
-def update_power_curve(source_file, compare_periods, user_data):
-    cp = CyclingProcessor(user_id=get_user_id(user_data))
+def update_power_curve(ride_data, compare_periods, user_data):
+    source_file, ride_ts = _normalize_ride_data(ride_data)
+    cp = _get_cached_processor(get_user_id(user_data), ride_ts)
 
     fig = go.Figure()
 
@@ -377,8 +411,9 @@ def update_power_curve(source_file, compare_periods, user_data):
     Input("ride-source-file", "data"),
     State("user-store", "data"),
 )
-def update_wprime_balance(source_file, user_data):
-    cp = CyclingProcessor(user_id=get_user_id(user_data))
+def update_wprime_balance(ride_data, user_data):
+    source_file, ride_ts = _normalize_ride_data(ride_data)
+    cp = _get_cached_processor(get_user_id(user_data), ride_ts)
     data = cp.get_wprime_balance(source_file) if source_file else {}
     time_min = data.get("time_min", [])
     bal_kj = data.get("wprime_bal_kj", [])
@@ -564,11 +599,12 @@ def update_wprime_balance(source_file, user_data):
     Input("ride-source-file", "data"),
     State("user-store", "data"),
 )
-def update_power_histogram(source_file, user_data):
+def update_power_histogram(ride_data, user_data):
+    source_file, ride_ts = _normalize_ride_data(ride_data)
     fig = go.Figure()
 
     if source_file:
-        cp = CyclingProcessor(user_id=get_user_id(user_data))
+        cp = _get_cached_processor(get_user_id(user_data), ride_ts)
         data = cp.get_power_histogram(source_file)
         if data["bins"]:
             fig.add_trace(
@@ -599,11 +635,12 @@ def update_power_histogram(source_file, user_data):
     Input("ride-source-file", "data"),
     State("user-store", "data"),
 )
-def update_power_zone_chart(source_file, user_data):
+def update_power_zone_chart(ride_data, user_data):
+    source_file, ride_ts = _normalize_ride_data(ride_data)
     fig = go.Figure()
 
     if source_file:
-        cp = CyclingProcessor(user_id=get_user_id(user_data))
+        cp = _get_cached_processor(get_user_id(user_data), ride_ts)
         data = cp.get_power_zone_distribution(source_file)
         if data["zones"]:
             labels = [
@@ -642,7 +679,8 @@ def update_power_zone_chart(source_file, user_data):
     Input("ride-source-file", "data"),
     State("user-store", "data"),
 )
-def update_elevation_profile(source_file, user_data):
+def update_elevation_profile(ride_data, user_data):
+    source_file, ride_ts = _normalize_ride_data(ride_data)
     fig = make_subplots(
         rows=3,
         cols=1,
@@ -653,7 +691,7 @@ def update_elevation_profile(source_file, user_data):
     )
 
     if source_file:
-        cp = CyclingProcessor(user_id=get_user_id(user_data))
+        cp = _get_cached_processor(get_user_id(user_data), ride_ts)
         data = cp.get_elevation_profile(source_file)
         if data["distance_mi"]:
             dist = data["distance_mi"]
@@ -793,11 +831,12 @@ def update_elevation_profile(source_file, user_data):
     Input("ride-source-file", "data"),
     State("user-store", "data"),
 )
-def update_climbs_section(source_file, user_data):
+def update_climbs_section(ride_data, user_data):
+    source_file, ride_ts = _normalize_ride_data(ride_data)
     if not source_file:
         return []
 
-    cp = CyclingProcessor(user_id=get_user_id(user_data))
+    cp = _get_cached_processor(get_user_id(user_data), ride_ts)
     climbs = cp.detect_climbs(source_file)
     if not climbs:
         return []
@@ -879,11 +918,12 @@ def update_climbs_section(source_file, user_data):
     Input("map-color-mode", "value"),
     State("user-store", "data"),
 )
-def update_route_map(source_file, color_mode, user_data):
+def update_route_map(ride_data, color_mode, user_data):
+    source_file, ride_ts = _normalize_ride_data(ride_data)
     fig = go.Figure()
 
     if source_file:
-        cp = CyclingProcessor(user_id=get_user_id(user_data))
+        cp = _get_cached_processor(get_user_id(user_data), ride_ts)
         route = cp.get_ride_route(source_file)
         if route["lat"]:
             # Base route line
