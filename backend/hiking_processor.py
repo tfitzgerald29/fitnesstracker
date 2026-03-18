@@ -73,7 +73,7 @@ class HikingProcessor:
         SEMICIRCLES_TO_DEGREES = 180.0 / (2**31)
 
         records = (
-            pl.read_parquet(
+            storage.read_parquet(
                 records_path,
                 columns=[
                     "source_file",

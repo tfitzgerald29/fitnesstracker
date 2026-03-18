@@ -81,7 +81,7 @@ def cycling_tab():
     Output("covariate-content", "children"),
     Output("covariate-content", "style"),
     Input("cycling-subtabs", "value"),
-    State("user-store", "data"),
+    Input("user-store", "data"),
 )
 def render_cycling_subtab(subtab, user_data):
     hide = {"display": "none"}

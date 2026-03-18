@@ -23,14 +23,19 @@ __pycache__/
 *.pyo
 .venv/
 env/
-.env
 loadtoaws.py
+.env
 
 # macOS
 .DS_Store
 
 # IDE
 .vscode/
+
+# Secrets
+.env
+.env.local
+.env.production
 
 # Tool config
 .python-version

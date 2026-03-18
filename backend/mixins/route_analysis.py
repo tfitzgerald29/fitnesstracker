@@ -22,7 +22,7 @@ class RouteAnalysisMixin:
             return {"distance_mi": [], "altitude_ft": [], "grade_pct": []}
 
         records = (
-            pl.read_parquet(records_path)
+            storage.read_parquet(records_path)
             .filter(pl.col("source_file") == source_file)
             .sort("timestamp")
         )
@@ -93,7 +93,7 @@ class RouteAnalysisMixin:
             return []
 
         records = (
-            pl.read_parquet(records_path)
+            storage.read_parquet(records_path)
             .filter(pl.col("source_file") == source_file)
             .sort("timestamp")
         )
@@ -258,7 +258,7 @@ class RouteAnalysisMixin:
             return {"lat": [], "lon": [], "power": [], "elevation": []}
 
         records = (
-            pl.read_parquet(records_path)
+            storage.read_parquet(records_path)
             .filter(pl.col("source_file") == source_file)
             .sort("timestamp")
         )

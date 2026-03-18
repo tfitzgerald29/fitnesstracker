@@ -48,6 +48,12 @@ class CyclingProcessor(
         cache_path = storage.path_join(self.mergedfiles_path, "power_curves.parquet")
         records_path = storage.path_join(self.mergedfiles_path, "record_mesgs.parquet")
 
+        # If power_curves.parquet is already warm in the parquet cache, the
+        # previous CyclingProcessor instantiation already verified that all
+        # rides are present — skip the S3 stat calls entirely.
+        if storage.is_cached(cache_path):
+            return
+
         if not storage.path_exists(records_path):
             return
 
@@ -118,6 +124,13 @@ class CyclingProcessor(
             self.mergedfiles_path, "cp_covariate_bootstrap.json"
         )
         curves_path = storage.path_join(self.mergedfiles_path, "power_curves.parquet")
+
+        # If power_curves.parquet is already warm in the parquet cache, the
+        # bootstrap staleness check was already done this session — skip the
+        # S3 path_exists / path_mtime API calls.
+        if storage.is_cached(curves_path):
+            return
+
         # Re-run bootstrap if cache is missing or older than power curves
         if storage.path_exists(curves_path) and (
             not storage.path_exists(boot_path)
