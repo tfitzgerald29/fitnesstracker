@@ -4,8 +4,6 @@ import webbrowser
 
 import dash
 
-from backend.FitFileProcessor import FitFileProcessor
-from backend.sleep_processor import SleepProcessor
 from backend.storage import storage
 from dashboard.layout import create_layout
 import dashboard.callbacks  # noqa: F401 - registers tab router + imports dashboard.tabs
@@ -14,6 +12,10 @@ import dashboard.callbacks  # noqa: F401 - registers tab router + imports dashbo
 # Local mode only: run on startup to pick up any new .fit/.zip files dropped
 # in ~/Downloads. In cloud (S3) mode, ingestion is triggered per-user via the
 # upload tab — there is no shared source folder to scan.
+#
+# FitFileProcessor and SleepProcessor are imported lazily here so that
+# garmin_fit_sdk and other heavy local-only dependencies are never loaded
+# in S3/cloud mode.
 #
 # Reloader guard: Werkzeug's debug reloader spawns a child process and sets
 # WERKZEUG_RUN_MAIN="true" in it.  The parent watcher process either leaves the
@@ -25,6 +27,9 @@ _in_reloader_parent = (
 )
 
 if not storage.is_s3():
+    from backend.FitFileProcessor import FitFileProcessor
+    from backend.sleep_processor import SleepProcessor
+
     _fp = FitFileProcessor()
     if os.path.isdir(_fp.source_folder) and not _in_reloader_parent:
         _fp.run()

@@ -5,6 +5,34 @@ from threading import Lock
 # ── Constants ──────────────────────────────────────────────────────────
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Columns to keep when caching record_mesgs.parquet in memory.
+# The full file has 35 columns (many >95% null); we only use these 10.
+# Keeping just these reduces the in-memory footprint from ~1.3 GB to ~200 MB.
+_RECORD_MESGS_KEEP_COLS = [
+    "source_file",
+    "timestamp",
+    "power",
+    "distance",
+    "enhanced_altitude",
+    "position_lat",  # kept as Float64 — GPS needs precision
+    "position_long",  # kept as Float64 — GPS needs precision
+    "enhanced_speed",
+    "cadence",
+    "heart_rate",
+]
+
+# Numeric columns in record_mesgs that can be downcast Float64 → Float32
+# without meaningful loss (power, speed, altitude, cadence, HR are all
+# well within Float32's ~7 significant decimal digits).
+_RECORD_MESGS_FLOAT32_COLS = [
+    "power",
+    "distance",
+    "enhanced_altitude",
+    "enhanced_speed",
+    "cadence",
+    "heart_rate",
+]
+
 _MODE = os.environ.get("STORAGE_MODE", "local")  # "local" | "s3"
 _S3_BUCKET = os.environ.get("S3_BUCKET", "")
 
@@ -120,23 +148,60 @@ class StorageConfig:
         In local mode, falls through to pl.read_parquet directly (fast disk).
         In S3 mode, caches the DataFrame so repeated callback calls don't
         re-fetch from S3 on every request.
+
+        Column-filtered reads (``columns=`` kwarg): if the cached DataFrame
+        already contains those columns, the filter is applied in-memory
+        instead of going back to S3.  On a cache miss the full DataFrame is
+        fetched, slimmed (see below), cached, and then the column slice is
+        returned — so every subsequent caller benefits.
+
+        Memory optimisation for ``record_mesgs.parquet``:
+            The full file has 35 columns (~1.3 GB in memory) but only 10 are
+            used anywhere in the codebase.  When this file is first loaded,
+            we keep only those 10 columns and downcast numeric ones from
+            Float64 to Float32.  This reduces the cached footprint to ~200 MB
+            with no loss of usable precision.
         """
         import polars as pl
 
         if not self.is_s3():
             return pl.read_parquet(path, **kwargs)
 
-        cache_key = path
+        columns = kwargs.pop("columns", None)
+
         with self._cache_lock:
-            if cache_key in self._parquet_cache and not kwargs:
-                return self._parquet_cache[cache_key]
+            cached = self._parquet_cache.get(path)
 
-        df = pl.read_parquet(path, **kwargs)
+        if cached is not None:
+            # Full (slimmed) DF is warm — apply any column filter in-memory
+            if columns is not None:
+                available = [c for c in columns if c in cached.columns]
+                return cached.select(available)
+            return cached
 
-        if not kwargs:  # only cache full reads, not column-filtered reads
-            with self._cache_lock:
-                self._parquet_cache[cache_key] = df
+        # Cache miss — fetch full DataFrame from S3
+        df = pl.read_parquet(path, **kwargs)  # kwargs no longer contains 'columns'
 
+        # Slim record_mesgs.parquet before caching to cap memory usage
+        if path.endswith("record_mesgs.parquet"):
+            keep = [c for c in _RECORD_MESGS_KEEP_COLS if c in df.columns]
+            df = df.select(keep)
+            f32 = [c for c in _RECORD_MESGS_FLOAT32_COLS if c in df.columns]
+            if f32:
+                df = df.with_columns([pl.col(c).cast(pl.Float32) for c in f32])
+            df = df.with_columns(pl.col("source_file").cast(pl.Categorical))
+
+        # Cast source_file to Categorical in power_curves.parquet so joins
+        # between the two cached DataFrames use matching dtypes.
+        if path.endswith("power_curves.parquet") and "source_file" in df.columns:
+            df = df.with_columns(pl.col("source_file").cast(pl.Categorical))
+
+        with self._cache_lock:
+            self._parquet_cache[path] = df
+
+        if columns is not None:
+            available = [c for c in columns if c in df.columns]
+            return df.select(available)
         return df
 
     def write_parquet(self, df: object, path: str) -> None:
@@ -154,6 +219,11 @@ class StorageConfig:
         """Store a computation result in the cache."""
         with self._cache_lock:
             self._compute_cache[key] = value
+
+    def is_cached(self, path: str) -> bool:
+        """Return True if the full DataFrame for *path* is already in the parquet cache."""
+        with self._cache_lock:
+            return path in self._parquet_cache
 
     def invalidate_cache(self, user_id: str) -> None:
         """Invalidate all cached parquet files and computations for a user.
