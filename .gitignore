@@ -24,7 +24,7 @@ __pycache__/
 .venv/
 env/
 loadtoaws.py
-
+.env
 # macOS
 .DS_Store
 
