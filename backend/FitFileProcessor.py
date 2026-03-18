@@ -1,7 +1,9 @@
 import os
 import shutil
 import zipfile
+from datetime import date, timedelta
 from pathlib import Path
+
 import polars as pl
 from garmin_fit_sdk import Decoder, Stream
 
@@ -33,6 +35,26 @@ class FitFileProcessor:
             "record_mesgs",
             "split_mesgs",  # rock climbing
             "split_summary_mesgs",  # rock climbing
+        ]
+        self._record_keep_cols = [
+            "source_file",
+            "timestamp",
+            "power",
+            "distance",
+            "enhanced_altitude",
+            "position_lat",
+            "position_long",
+            "enhanced_speed",
+            "cadence",
+            "heart_rate",
+        ]
+        self._record_f32_cols = [
+            "power",
+            "distance",
+            "enhanced_altitude",
+            "enhanced_speed",
+            "cadence",
+            "heart_rate",
         ]
         # Column padding lists derived from the schemas package.
         # Replaces expected_columns.json — schemas are now the single source of truth.
@@ -296,7 +318,10 @@ class FitFileProcessor:
             print(f"\nUpdating Parquet files in: {self.mergedfiles_path}")
             for msg_type, data in data_by_type.items():
                 parquet_path = storage.path_join(
-                    self.mergedfiles_path, f"{msg_type}.parquet"
+                    self.mergedfiles_path,
+                    "record_mesgs_full.parquet"
+                    if msg_type == "record_mesgs"
+                    else f"{msg_type}.parquet",
                 )
 
                 if data:
@@ -388,6 +413,8 @@ class FitFileProcessor:
                     print(f"  - {item['file']} ({item['msg_type']}): {item['error']}")
 
         print("\nDone!")
+
+        self._refresh_record_view()
 
         return {
             "new_files_processed": new_file_count,
@@ -511,12 +538,42 @@ class FitFileProcessor:
                     {"file": fit_name, "msg_type": msg_type, "error": str(e)}
                 )
 
+        self._refresh_record_view()
+
         return {
             "new_files_processed": new_file_count,
             "skipped_already_processed": 0,
             "schema_mismatch_files": schema_mismatch_files,
             "processing_error_files": processing_error_files,
         }
+
+    def _refresh_record_view(self) -> None:
+        full_path = storage.path_join(
+            self.mergedfiles_path, "record_mesgs_full.parquet"
+        )
+        view_path = storage.path_join(self.mergedfiles_path, "record_mesgs.parquet")
+        if not storage.path_exists(full_path):
+            return
+
+        cutoff = date.today() - timedelta(days=182)
+        scan = pl.scan_parquet(full_path)
+        schema = scan.collect_schema()
+        keep = [c for c in self._record_keep_cols if c in schema.names()]
+        if "timestamp" not in keep:
+            keep.append("timestamp")
+
+        df = scan.filter(pl.col("timestamp").dt.date() >= cutoff).select(keep).collect()
+
+        if df.is_empty():
+            return
+
+        cols = [c for c in self._record_f32_cols if c in df.columns]
+        if cols:
+            df = df.with_columns([pl.col(c).cast(pl.Float32) for c in cols])
+        df = df.with_columns(pl.col("source_file").cast(pl.Categorical))
+
+        storage.makedirs(self.mergedfiles_path)
+        df.write_parquet(view_path)
 
     def run(self):
         print("=" * 60)
@@ -564,11 +621,14 @@ class FitFileProcessor:
         # Remove existing merged parquets
         for msg_type in self.inclusion_list:
             parquet_path = storage.path_join(
-                self.mergedfiles_path, f"{msg_type}.parquet"
+                self.mergedfiles_path,
+                "record_mesgs_full.parquet"
+                if msg_type == "record_mesgs"
+                else f"{msg_type}.parquet",
             )
             if storage.path_exists(parquet_path):
                 os.remove(parquet_path)
-                print(f"  Removed {msg_type}.parquet")
+                print(f"  Removed {os.path.basename(parquet_path)}")
 
         # Get all FIT files from processedfiles
         all_fit_files = [

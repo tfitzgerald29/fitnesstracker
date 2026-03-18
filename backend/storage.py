@@ -181,7 +181,7 @@ class StorageConfig:
             if date_cfg is not None:
                 years, date_col, is_string = date_cfg
                 cutoff = date.today() - timedelta(days=years * 365)
-                if date_col in scan.columns:
+                if date_col in scan.collect_schema().names():
                     predicate = (
                         pl.col(date_col) >= str(cutoff)
                         if is_string
