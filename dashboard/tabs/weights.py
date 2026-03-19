@@ -7,6 +7,7 @@ from dash import Input, Output, State, callback, ctx, dcc, html, no_update
 
 from backend.storage import storage
 from ..config import BODY_WEIGHT_LB, CARD_STYLE, COLORS, get_user_id
+from ..tab_ui import SCROLLABLE_TABS_STYLE, make_tab
 
 
 def _load_data(user_id=None):
@@ -632,49 +633,14 @@ def weights_tab(user_id=None):
             dcc.Tabs(
                 id="weights-subtabs",
                 value="log",
+                mobile_breakpoint=0,
                 children=[
-                    dcc.Tab(
-                        label="Overview",
-                        value="log",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
-                    dcc.Tab(
-                        label="Personal Records",
-                        value="pr",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
-                    dcc.Tab(
-                        label="Lifting Session Detail",
-                        value="session",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
-                    dcc.Tab(
-                        label="New Entry",
-                        value="entry",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
+                    make_tab("Overview", "log", COLORS["accent"]),
+                    make_tab("Personal Records", "pr", COLORS["accent"]),
+                    make_tab("Lifting Session Detail", "session", COLORS["accent"]),
+                    make_tab("New Entry", "entry", COLORS["accent"]),
                 ],
-                style={"height": "40px", "marginBottom": "16px"},
+                style={**SCROLLABLE_TABS_STYLE, "marginBottom": "16px"},
                 colors={
                     "border": "transparent",
                     "primary": COLORS["accent"],

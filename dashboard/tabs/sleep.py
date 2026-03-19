@@ -38,8 +38,8 @@ def _stat_card(label, value, unit="", sub=""):
             **CARD_STYLE,
             "display": "inline-block",
             "textAlign": "center",
-            "padding": "16px 28px",
-            "minWidth": "130px",
+            "padding": "14px 20px",
+            "minWidth": "120px",
         },
         children=children,
     )
@@ -53,8 +53,8 @@ def _stage_card(label, hours, pct, color):
             **CARD_STYLE,
             "display": "inline-block",
             "textAlign": "center",
-            "padding": "12px 20px",
-            "minWidth": "100px",
+            "padding": "10px 16px",
+            "minWidth": "92px",
             "borderTop": f"3px solid {color}",
         },
         children=[
@@ -96,8 +96,8 @@ def _score_badge(label, value):
             **CARD_STYLE,
             "display": "inline-block",
             "textAlign": "center",
-            "padding": "12px 20px",
-            "minWidth": "110px",
+            "padding": "10px 16px",
+            "minWidth": "100px",
         },
         children=[
             html.Div(
@@ -157,7 +157,9 @@ def sleep_tab():
                 style={
                     "display": "flex",
                     "alignItems": "center",
+                    "flexWrap": "wrap",
                     "gap": "12px",
+                    "rowGap": "8px",
                     "marginBottom": "8px",
                 },
                 children=[
@@ -171,7 +173,10 @@ def sleep_tab():
                         value="total_sleep_hrs",
                         clearable=False,
                         style={
-                            "width": "220px",
+                            "width": "100%",
+                            "minWidth": "220px",
+                            "maxWidth": "320px",
+                            "flex": "1 1 220px",
                             "backgroundColor": COLORS["card"],
                             "color": COLORS["text"],
                             "border": f"1px solid {COLORS['border']}",
@@ -183,7 +188,7 @@ def sleep_tab():
                         style={
                             "color": COLORS["muted"],
                             "fontSize": "0.85rem",
-                            "marginLeft": "12px",
+                            "marginLeft": "4px",
                         },
                     ),
                     dcc.Dropdown(
@@ -197,7 +202,10 @@ def sleep_tab():
                         value=90,
                         clearable=False,
                         style={
-                            "width": "160px",
+                            "width": "100%",
+                            "minWidth": "180px",
+                            "maxWidth": "220px",
+                            "flex": "1 1 180px",
                             "backgroundColor": COLORS["card"],
                             "color": COLORS["text"],
                             "border": f"1px solid {COLORS['border']}",

@@ -35,7 +35,13 @@ def cycling_cp_layout():
                     "color": COLORS["text"],
                 },
                 inputStyle={"marginRight": "4px"},
-                style={"marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "gap": "8px",
+                    "rowGap": "6px",
+                    "marginBottom": "12px",
+                },
             ),
             html.Div(id="cp-results"),
             html.Div(dcc.Graph(id="cp-chart"), style=CARD_STYLE),
@@ -176,7 +182,13 @@ def update_cp_model(period):
 
     # Summary cards
     summary = html.Div(
-        style={"display": "flex", "gap": "12px", "marginBottom": "12px"},
+        style={
+            "display": "flex",
+            "flexWrap": "wrap",
+            "gap": "12px",
+            "rowGap": "8px",
+            "marginBottom": "12px",
+        },
         children=[
             html.Div(
                 style={

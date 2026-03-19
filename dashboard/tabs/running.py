@@ -48,8 +48,8 @@ def _stat_card(label, value, sub=""):
             **CARD_STYLE,
             "display": "inline-block",
             "textAlign": "center",
-            "padding": "16px 28px",
-            "minWidth": "130px",
+            "padding": "14px 20px",
+            "minWidth": "120px",
         },
         children=children,
     )

@@ -1,31 +1,7 @@
 from dash import dcc, html
 
 from .config import COLORS
-
-
-TAB_STYLE = {
-    "padding": "6px 12px",
-    "lineHeight": "28px",
-    "fontSize": "0.85rem",
-    "display": "flex",
-    "alignItems": "center",
-    "justifyContent": "center",
-    "flex": "0 0 auto",
-    "whiteSpace": "nowrap",
-}
-
-
-def _tab(label: str, value: str, selected_border: str) -> dcc.Tab:
-    style = {**TAB_STYLE}
-
-    selected_style = {**style, "borderTop": f"2px solid {selected_border}"}
-
-    return dcc.Tab(
-        label=label,
-        value=value,
-        style=style,
-        selected_style=selected_style,
-    )
+from .tab_ui import SCROLLABLE_TABS_STYLE, make_tab
 
 
 def create_layout():
@@ -68,28 +44,20 @@ def create_layout():
                             value="calendar",
                             mobile_breakpoint=0,
                             children=[
-                                _tab("Calendar", "calendar", COLORS["accent"]),
-                                _tab("Sport Summary", "sports", COLORS["accent"]),
-                                _tab("Cycling", "cycling", COLORS["accent"]),
-                                _tab("Weight Training", "weights", COLORS["accent"]),
-                                _tab("Rock Climbing", "climbing", COLORS["accent"]),
-                                _tab("Skiing", "Ski", COLORS["accent"]),
-                                _tab("Hiking", "hiking", "#8BC34A"),
-                                _tab("Running", "running", "#E91E63"),
-                                _tab("Pickleball", "pickleball", "#AB47BC"),
-                                _tab("Sleep", "sleep", "#00BCD4"),
+                                make_tab("Calendar", "calendar", COLORS["accent"]),
+                                make_tab("Sport Summary", "sports", COLORS["accent"]),
+                                make_tab("Cycling", "cycling", COLORS["accent"]),
+                                make_tab(
+                                    "Weight Training", "weights", COLORS["accent"]
+                                ),
+                                make_tab("Rock Climbing", "climbing", COLORS["accent"]),
+                                make_tab("Skiing", "Ski", COLORS["accent"]),
+                                make_tab("Hiking", "hiking", "#8BC34A"),
+                                make_tab("Running", "running", "#E91E63"),
+                                make_tab("Pickleball", "pickleball", "#AB47BC"),
+                                make_tab("Sleep", "sleep", "#00BCD4"),
                             ],
-                            style={
-                                "display": "flex",
-                                "alignItems": "center",
-                                "justifyContent": "flex-start",
-                                "overflowX": "auto",
-                                "overflowY": "hidden",
-                                "whiteSpace": "nowrap",
-                                "WebkitOverflowScrolling": "touch",
-                                "scrollbarWidth": "thin",
-                                "width": "100%",
-                            },
+                            style={**SCROLLABLE_TABS_STYLE},
                             colors={
                                 "border": "transparent",
                                 "primary": COLORS["accent"],

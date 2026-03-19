@@ -267,7 +267,13 @@ def update_ride_detail(ride_ts):
                     "color": COLORS["text"],
                 },
                 inputStyle={"marginRight": "4px"},
-                style={"marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "gap": "8px",
+                    "rowGap": "6px",
+                    "marginBottom": "12px",
+                },
             ),
             html.Div(dcc.Graph(id="route-map-chart"), style=CARD_STYLE),
             # W' Balance section
@@ -329,7 +335,13 @@ def update_ride_detail(ride_ts):
                     "color": COLORS["text"],
                 },
                 inputStyle={"marginRight": "4px"},
-                style={"marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "gap": "8px",
+                    "rowGap": "6px",
+                    "marginBottom": "12px",
+                },
             ),
             dcc.Store(
                 id="ride-source-file",
@@ -448,7 +460,13 @@ def update_wprime_balance(ride_data):
     # Stats cards showing CP model values as of this ride
     min_bal = round(min(bal_kj), 1) if bal_kj else 0
     stats = html.Div(
-        style={"display": "flex", "gap": "12px", "marginBottom": "12px"},
+        style={
+            "display": "flex",
+            "flexWrap": "wrap",
+            "gap": "12px",
+            "rowGap": "8px",
+            "marginBottom": "12px",
+        },
         children=[
             html.Div(
                 style={

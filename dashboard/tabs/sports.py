@@ -38,8 +38,8 @@ def _stat_card(label, value, sub=""):
             **CARD_STYLE,
             "display": "inline-block",
             "textAlign": "center",
-            "padding": "16px 28px",
-            "minWidth": "140px",
+            "padding": "14px 20px",
+            "minWidth": "120px",
         },
         children=children,
     )
@@ -75,7 +75,13 @@ def sports_tab():
                     "color": COLORS["text"],
                 },
                 inputStyle={"marginRight": "4px"},
-                style={"marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "gap": "8px",
+                    "rowGap": "6px",
+                    "marginBottom": "12px",
+                },
             ),
             # Total hours chart
             html.Div(dcc.Graph(id="sport-total-chart"), style=CARD_STYLE),
@@ -305,5 +311,6 @@ def update_sport_summary(group_by):
         style_data_conditional=[
             {"if": {"row_index": "odd"}, "backgroundColor": "#1e2130"},
         ],
+        style_table={"overflowX": "auto"},
         page_size=20,
     )

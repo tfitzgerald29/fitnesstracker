@@ -43,7 +43,13 @@ def cycling_covariate_layout():
                     "color": COLORS["text"],
                 },
                 inputStyle={"marginRight": "4px"},
-                style={"marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "gap": "8px",
+                    "rowGap": "6px",
+                    "marginBottom": "12px",
+                },
             ),
             html.Div(id="cp-covariate-results"),
             html.Div(dcc.Graph(id="cp-covariate-chart"), style=CARD_STYLE),
@@ -156,22 +162,32 @@ def update_cp_covariates(sleep_toggle):
                         "marginBottom": "6px",
                     },
                 ),
-                html.Table(
-                    [html.Thead(header), html.Tbody(rows)],
-                    style={
-                        "fontSize": "0.85rem",
-                        "color": COLORS["text"],
-                        "width": "100%",
-                    },
+                html.Div(
+                    html.Table(
+                        [html.Thead(header), html.Tbody(rows)],
+                        style={
+                            "fontSize": "0.85rem",
+                            "color": COLORS["text"],
+                            "width": "100%",
+                            "minWidth": "460px",
+                        },
+                    ),
+                    style={"overflowX": "auto"},
                 ),
             ],
-            style={"flex": "1", **CARD_STYLE},
+            style={"flex": "1 1 340px", "minWidth": "280px", **CARD_STYLE},
         )
 
     tables = [_build_table(mod, label) for label, mod in result["models"].items()]
 
     summary = html.Div(
-        style={"display": "flex", "gap": "12px", "marginBottom": "12px"},
+        style={
+            "display": "flex",
+            "flexWrap": "wrap",
+            "gap": "12px",
+            "rowGap": "8px",
+            "marginBottom": "12px",
+        },
         children=tables,
     )
 

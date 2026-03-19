@@ -1,6 +1,7 @@
 from dash import Input, Output, callback, dcc, html
 
 from ..config import COLORS
+from ..tab_ui import SCROLLABLE_TABS_STYLE, make_tab
 
 from .cycling_cp import cycling_cp_layout  # noqa: F401 (registers callbacks)
 from .cycling_covariate import cycling_covariate_layout  # noqa: F401 (registers callbacks)
@@ -14,49 +15,14 @@ def cycling_tab():
             dcc.Tabs(
                 id="cycling-subtabs",
                 value="overview",
+                mobile_breakpoint=0,
                 children=[
-                    dcc.Tab(
-                        label="Overview",
-                        value="overview",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
-                    dcc.Tab(
-                        label="Critical Power",
-                        value="cp",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
-                    dcc.Tab(
-                        label="Peak Power Analysis",
-                        value="covariate",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
-                    dcc.Tab(
-                        label="Rides",
-                        value="rides",
-                        style={"padding": "6px 16px", "lineHeight": "28px"},
-                        selected_style={
-                            "padding": "6px 16px",
-                            "lineHeight": "28px",
-                            "borderTop": f"2px solid {COLORS['accent']}",
-                        },
-                    ),
+                    make_tab("Overview", "overview", COLORS["accent"]),
+                    make_tab("Critical Power", "cp", COLORS["accent"]),
+                    make_tab("Peak Power Analysis", "covariate", COLORS["accent"]),
+                    make_tab("Rides", "rides", COLORS["accent"]),
                 ],
-                style={"height": "40px", "marginBottom": "16px"},
+                style={**SCROLLABLE_TABS_STYLE, "marginBottom": "16px"},
                 colors={
                     "border": "transparent",
                     "primary": COLORS["accent"],

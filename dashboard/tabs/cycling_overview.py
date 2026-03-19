@@ -43,7 +43,13 @@ def cycling_overview_layout():
                     "color": COLORS["text"],
                 },
                 inputStyle={"marginRight": "4px"},
-                style={"marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "gap": "8px",
+                    "rowGap": "6px",
+                    "marginBottom": "12px",
+                },
             ),
             html.Div(dcc.Graph(id="cycling-summary-chart"), style=CARD_STYLE),
             # Training load section
@@ -57,7 +63,14 @@ def cycling_overview_layout():
                 },
             ),
             html.Div(
-                style={"display": "flex", "gap": "8px", "marginBottom": "12px"},
+                style={
+                    "display": "flex",
+                    "flexWrap": "wrap",
+                    "alignItems": "center",
+                    "gap": "8px",
+                    "rowGap": "8px",
+                    "marginBottom": "12px",
+                },
                 children=[
                     dcc.RadioItems(
                         id="date-range",
@@ -80,7 +93,7 @@ def cycling_overview_layout():
                         id="show-forecast",
                         options=[{"label": " Show Forecast", "value": "yes"}],
                         value=["yes"],
-                        style={"marginLeft": "24px"},
+                        style={"marginLeft": "8px"},
                         labelStyle={"color": COLORS["text"]},
                         inputStyle={"marginRight": "4px"},
                     ),
