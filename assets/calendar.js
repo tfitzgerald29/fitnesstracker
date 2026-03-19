@@ -17,6 +17,8 @@
 
   window._fcCalendar = null;
   window._fcCurrentMonth = null;
+  window._fcIsMobile = null;
+  var mobileMq = window.matchMedia("(max-width: 768px)");
 
   var SPORT_LABELS = {
     cycling: "Cycling",
@@ -220,16 +222,16 @@
         "position:absolute",
         "bottom:3px",
         "right:4px",
-        "fontSize:9px",
-        "fontWeight:600",
-        "lineHeight:14px",
+        "font-size:9px",
+        "font-weight:600",
+        "line-height:14px",
         "padding:0 4px",
-        "borderRadius:3px",
+        "border-radius:3px",
         "background:" + sleepColor(score),
         "color:#fff",
         "opacity:0.85",
-        "pointerEvents:none",
-        "zIndex:1",
+        "pointer-events:none",
+        "z-index:1",
       ].join(";");
       pill.textContent = score;
       // fc-daygrid-day has position:relative already
@@ -269,21 +271,31 @@
       window._fcCalendar = null;
     }
 
+    var isMobile = mobileMq.matches;
+    window._fcIsMobile = isMobile;
+
     var calOpts = {
       initialView: "dayGridMonth",
       firstDay: 1,
       fixedWeekCount: false,
       showNonCurrentDates: true,
-      headerToolbar: {
-        left: "prev,next today",
-        center: "title",
-        right: "",
-      },
+      headerToolbar: isMobile
+        ? {
+            left: "prev,next",
+            center: "title",
+            right: "today",
+          }
+        : {
+            left: "prev,next today",
+            center: "title",
+            right: "",
+          },
       events: events,
       editable: false,
       selectable: false,
       nowIndicator: true,
       height: "auto",
+      dayMaxEvents: isMobile ? 2 : false,
       themeSystem: "standard",
       datesSet: function (info) {
         window._fcCurrentMonth = info.view.currentStart.toISOString().slice(0, 10);
@@ -314,4 +326,18 @@
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
+
+  function onViewportChange() {
+    if (!window._fcCalendar) return;
+    var isMobile = mobileMq.matches;
+    if (window._fcIsMobile !== isMobile) {
+      tryInit();
+    }
+  }
+
+  if (typeof mobileMq.addEventListener === "function") {
+    mobileMq.addEventListener("change", onViewportChange);
+  } else if (typeof mobileMq.addListener === "function") {
+    mobileMq.addListener(onViewportChange);
+  }
 })();

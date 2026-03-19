@@ -11,7 +11,11 @@ from dashboard.layout import create_layout
 import dashboard.callbacks  # noqa: F401 - registers tab router + imports dashboard.tabs
 
 # ── Dash app ──────────────────────────────────────────────────────────────────
-app = dash.Dash(__name__, suppress_callback_exceptions=True)
+app = dash.Dash(
+    __name__,
+    suppress_callback_exceptions=True,
+    meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
+)
 app.title = "Tyler's Activities"
 app.layout = create_layout()
 

@@ -96,3 +96,55 @@
   white-space: nowrap;
   overflow-x: auto;
 }
+
+@media (max-width: 768px) {
+  .fc .fc-toolbar {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .fc .fc-toolbar-title {
+    font-size: 1rem;
+  }
+
+  .fc .fc-button {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+  }
+
+  .fc .fc-col-header-cell-cushion,
+  .fc .fc-daygrid-day-number {
+    font-size: 0.72rem;
+  }
+
+  .fc .fc-daygrid-day-frame {
+    min-height: 76px;
+  }
+
+  .fc .fc-daygrid-event,
+  .fc .fc-h-event {
+    font-size: 0.66rem;
+    padding: 1px 2px;
+  }
+
+  .fc .fc-daygrid-day-events {
+    margin-top: 1px;
+  }
+
+  .fc-week-summary-row td,
+  .fc-month-summary-row td {
+    font-size: 0.68rem;
+    padding: 6px 8px;
+    white-space: normal;
+    overflow-x: auto;
+    line-height: 1.35;
+  }
+
+  .fc .fc-sleep-pill {
+    bottom: 2px;
+    right: 2px;
+    font-size: 8px;
+    line-height: 12px;
+    padding: 0 3px;
+  }
+}
