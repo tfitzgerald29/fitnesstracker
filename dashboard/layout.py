@@ -4,19 +4,19 @@ from .config import COLORS
 
 
 TAB_STYLE = {
-    "padding": "6px 20px",
+    "padding": "6px 12px",
     "lineHeight": "28px",
+    "fontSize": "0.85rem",
     "display": "flex",
     "alignItems": "center",
     "justifyContent": "center",
     "flex": "0 0 auto",
+    "whiteSpace": "nowrap",
 }
 
 
 def _tab(label: str, value: str, selected_border: str) -> dcc.Tab:
     style = {**TAB_STYLE}
-    if " " in label:
-        style["whiteSpace"] = "nowrap"
 
     selected_style = {**style, "borderTop": f"2px solid {selected_border}"}
 
@@ -66,6 +66,7 @@ def create_layout():
                         children=dcc.Tabs(
                             id="tabs",
                             value="calendar",
+                            mobile_breakpoint=0,
                             children=[
                                 _tab("Calendar", "calendar", COLORS["accent"]),
                                 _tab("Sport Summary", "sports", COLORS["accent"]),
@@ -79,14 +80,15 @@ def create_layout():
                                 _tab("Sleep", "sleep", "#00BCD4"),
                             ],
                             style={
-                                "height": "40px",
                                 "display": "flex",
                                 "alignItems": "center",
+                                "justifyContent": "flex-start",
                                 "overflowX": "auto",
                                 "overflowY": "hidden",
                                 "whiteSpace": "nowrap",
                                 "WebkitOverflowScrolling": "touch",
                                 "scrollbarWidth": "thin",
+                                "width": "100%",
                             },
                             colors={
                                 "border": "transparent",
