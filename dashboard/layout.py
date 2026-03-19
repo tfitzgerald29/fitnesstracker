@@ -3,6 +3,31 @@ from dash import dcc, html
 from .config import COLORS
 
 
+TAB_STYLE = {
+    "padding": "6px 20px",
+    "lineHeight": "28px",
+    "display": "flex",
+    "alignItems": "center",
+    "justifyContent": "center",
+    "flex": "0 0 auto",
+}
+
+
+def _tab(label: str, value: str, selected_border: str) -> dcc.Tab:
+    style = {**TAB_STYLE}
+    if " " in label:
+        style["whiteSpace"] = "nowrap"
+
+    selected_style = {**style, "borderTop": f"2px solid {selected_border}"}
+
+    return dcc.Tab(
+        label=label,
+        value=value,
+        style=style,
+        selected_style=selected_style,
+    )
+
+
 def create_layout():
     return html.Div(
         style={
@@ -19,6 +44,8 @@ def create_layout():
                     "display": "flex",
                     "alignItems": "center",
                     "gap": "32px",
+                    "flexWrap": "wrap",
+                    "rowGap": "12px",
                 },
                 children=[
                     html.H1(
@@ -28,221 +55,45 @@ def create_layout():
                             "fontWeight": "600",
                             "color": "#fff",
                             "margin": 0,
+                            "flex": "0 0 auto",
                         },
                     ),
-                    dcc.Tabs(
-                        id="tabs",
-                        value="calendar",
-                        children=[
-                            dcc.Tab(
-                                label="Calendar",
-                                value="calendar",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": f"2px solid {COLORS['accent']}",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Sport Summary",
-                                value="sports",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": f"2px solid {COLORS['accent']}",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Cycling",
-                                value="cycling",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": f"2px solid {COLORS['accent']}",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Weight Training",
-                                value="weights",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": f"2px solid {COLORS['accent']}",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Rock Climbing",
-                                value="climbing",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": f"2px solid {COLORS['accent']}",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Skiing",
-                                value="Ski",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "whiteSpace": "nowrap",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": f"2px solid {COLORS['accent']}",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Hiking",
-                                value="hiking",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": "2px solid #8BC34A",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Running",
-                                value="running",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": "2px solid #E91E63",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Pickleball",
-                                value="pickleball",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": "2px solid #AB47BC",
-                                },
-                            ),
-                            dcc.Tab(
-                                label="Sleep",
-                                value="sleep",
-                                style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                },
-                                selected_style={
-                                    "padding": "6px 20px",
-                                    "lineHeight": "28px",
-                                    "display": "flex",
-                                    "alignItems": "center",
-                                    "justifyContent": "center",
-                                    "borderTop": "2px solid #00BCD4",
-                                },
-                            ),
-                        ],
+                    html.Div(
                         style={
-                            "height": "40px",
-                            "display": "flex",
-                            "alignItems": "center",
+                            "flex": "1 1 780px",
+                            "minWidth": "0",
                         },
-                        colors={
-                            "border": "transparent",
-                            "primary": COLORS["accent"],
-                            "background": "transparent",
-                        },
+                        children=dcc.Tabs(
+                            id="tabs",
+                            value="calendar",
+                            children=[
+                                _tab("Calendar", "calendar", COLORS["accent"]),
+                                _tab("Sport Summary", "sports", COLORS["accent"]),
+                                _tab("Cycling", "cycling", COLORS["accent"]),
+                                _tab("Weight Training", "weights", COLORS["accent"]),
+                                _tab("Rock Climbing", "climbing", COLORS["accent"]),
+                                _tab("Skiing", "Ski", COLORS["accent"]),
+                                _tab("Hiking", "hiking", "#8BC34A"),
+                                _tab("Running", "running", "#E91E63"),
+                                _tab("Pickleball", "pickleball", "#AB47BC"),
+                                _tab("Sleep", "sleep", "#00BCD4"),
+                            ],
+                            style={
+                                "height": "40px",
+                                "display": "flex",
+                                "alignItems": "center",
+                                "overflowX": "auto",
+                                "overflowY": "hidden",
+                                "whiteSpace": "nowrap",
+                                "WebkitOverflowScrolling": "touch",
+                                "scrollbarWidth": "thin",
+                            },
+                            colors={
+                                "border": "transparent",
+                                "primary": COLORS["accent"],
+                                "background": "transparent",
+                            },
+                        ),
                     ),
                 ],
             ),
