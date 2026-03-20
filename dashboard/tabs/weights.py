@@ -1,7 +1,7 @@
-import json
 import os
 from datetime import date
 
+import dash_mantine_components as dmc
 import plotly.graph_objects as go
 from dash import Input, Output, State, callback, ctx, dcc, html, no_update
 
@@ -132,9 +132,9 @@ def _weights_log(user_id=None):
                     "fontSize": "0.95rem",
                 },
             ),
-            dcc.Dropdown(
+            dmc.MultiSelect(
                 id="exercise-select",
-                options=[
+                data=[
                     {"label": n.replace("_", " ").title(), "value": n}
                     for n in exercise_names
                 ],
@@ -142,9 +142,26 @@ def _weights_log(user_id=None):
                     n for n in ["inclined_bench_press", "squat"] if n in exercise_names
                 ]
                 or (exercise_names[:1] if exercise_names else []),
-                multi=True,
                 placeholder="Select exercises to compare...",
-                style={"backgroundColor": COLORS["card"], "marginBottom": "12px"},
+                searchable=True,
+                clearable=True,
+                styles={
+                    "input": {
+                        "backgroundColor": COLORS["bk"],
+                        "color": COLORS["text"],
+                        "marginBottom": "12px",
+                    },
+                    "dropdown": {
+                        "backgroundColor": "white",
+                    },
+                    "option": {
+                        "color": "black",
+                    },
+                    "pill": {
+                        "color": COLORS["text"],
+                        "backgroundColor": COLORS["border"],
+                    },
+                },
             ),
             html.Div(id="exercise-progress-table"),
         ],

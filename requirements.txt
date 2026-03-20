@@ -8,3 +8,4 @@ polars
 pyarrow
 statsmodels
 tzdata
+dash-mantine-components

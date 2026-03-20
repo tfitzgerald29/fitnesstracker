@@ -3,6 +3,7 @@ import threading
 import webbrowser
 
 import dash
+import dash_mantine_components as dmc
 
 from backend.FitFileProcessor import FitFileProcessor
 from backend.sleep_processor import SleepProcessor
@@ -14,10 +15,14 @@ import dashboard.callbacks  # noqa: F401 - registers tab router + imports dashbo
 app = dash.Dash(
     __name__,
     suppress_callback_exceptions=True,
+    external_stylesheets=dmc.styles.ALL,
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
 )
 app.title = "Tyler's Activities"
-app.layout = create_layout()
+app.layout = dmc.MantineProvider(
+    children=create_layout(),
+    forceColorScheme="dark",
+)
 
 server = app.server  # required for Plotly Cloud / gunicorn
 

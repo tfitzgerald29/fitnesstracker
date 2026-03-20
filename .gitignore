@@ -7,7 +7,7 @@ mergedfiles/tcx_record_mesgs.parquet
 mergedfiles/tcx_session_mesgs.parquet
 sleepdata/
 tests/
-
+data.csv
 # Notebooks
 *.ipynb
 
@@ -17,7 +17,7 @@ backend/tcx_import.py
 removeoldfiles.py
 tcx_file_processor_NB.py
 tests/
-
+sleepexplore.py
 
 # Python
 __pycache__/

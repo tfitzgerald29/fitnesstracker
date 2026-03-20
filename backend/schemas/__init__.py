@@ -16,14 +16,14 @@ INGEST_COLUMNS: dict[msg_type → list[str]]
 
 Schema dicts (column → polars dtype)
 -------------------------------------
-from backend.schemas import cycling, skiing, climbing, running, hiking
+from backend.schemas import cycling, skiing, climbing, running, hiking, sleep
 cycling.SESSION   # session_mesgs schema for cycling
 cycling.RECORD    # record_mesgs schema for cycling
 
 from backend.schemas.base import SESSION_BASE, RECORD_BASE, SPLIT_BASE
 """
 
-from . import climbing, cycling, hiking, running, skiing
+from . import climbing, cycling, hiking, running, skiing, sleep
 from .base import RECORD_BASE, SPLIT_BASE, SPLIT_SUMMARY_BASE
 from .loader import load_records, load_sessions, load_split_summaries, load_splits
 
@@ -88,4 +88,5 @@ __all__ = [
     "load_splits",
     "load_split_summaries",
     "INGEST_COLUMNS",
+    "sleep",
 ]

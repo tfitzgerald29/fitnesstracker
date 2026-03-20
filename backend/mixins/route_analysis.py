@@ -331,6 +331,6 @@ class RouteAnalysisMixin:
         )
 
         result = {"lat": lat, "lon": lon, "power": power, "elevation": elevation}
-        del records, gps
+        del records, gps, elevation
         gc.collect()
         return result

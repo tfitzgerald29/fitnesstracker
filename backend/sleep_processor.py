@@ -2,7 +2,9 @@
 Sleep data ingestion and read-only query layer for Garmin sleep exports.
 
 Ingestion pipeline (local mode only, mirrors FitFileProcessor):
-    ~/Downloads/*_sleepData.json  →  copy to sleepdata/  →  load DataFrame
+    ~/Downloads/*_sleepData.json  →  copy to sleepdata/
+    ~/Downloads/Sleep.csv         →  parse one-night key/value export
+    then merge both sources into mergedfiles/sleep.parquet
 
 In S3 mode, ingestion is not run at startup — files are expected to already
 exist at s3://<bucket>/<user_id>/sleepdata/.
@@ -12,12 +14,15 @@ not FIT files.
 """
 
 import glob
-import json
+import csv
 import os
+import re
 import shutil
+from datetime import datetime
 
 import polars as pl
 
+from .schemas.sleep import SLEEP
 from .storage import storage
 
 
@@ -33,6 +38,79 @@ class SleepProcessor:
         self.wellness_path = storage.wellness_path(user_id)
         self.mergedfiles_path = storage.merged_path(user_id)
         self.sleep = self._load_sleep_data()
+
+    CSV_FILENAME = "Sleep.csv"
+
+    CSV_KEY_MAP: dict[str, list[str]] = {
+        "calendar_date": ["Calendar Date", "Date"],
+        "sleep_start_gmt": ["Sleep Start GMT", "Sleep Start Time", "Sleep Start"],
+        "sleep_end_gmt": ["Sleep End GMT", "Sleep End Time", "Sleep End"],
+        "deep_sec": ["Deep Sleep Duration", "Deep Sleep"],
+        "light_sec": ["Light Sleep Duration", "Light Sleep"],
+        "rem_sec": ["REM Duration", "REM Sleep Duration", "REM Sleep"],
+        "awake_sec": ["Awake Time", "Awake Duration", "Awake"],
+        "total_sleep_sec": ["Sleep Duration", "Total Sleep Duration", "Total Sleep"],
+        "total_in_bed_sec": ["Time in Bed", "Total in Bed", "In Bed Duration"],
+        "sleep_efficiency_pct": ["Sleep Efficiency", "Sleep Efficiency %"],
+        "avg_spo2": ["Average SpO2", "Avg SpO2"],
+        "lowest_spo2": ["Lowest SpO2", "Min SpO2"],
+        "avg_hr": ["Average Heart Rate", "Average HR", "Avg HR"],
+        "avg_respiration": ["Average Respiration", "Avg Respiration"],
+        "lowest_respiration": ["Lowest Respiration"],
+        "highest_respiration": ["Highest Respiration"],
+        "awake_count": ["Awakenings", "Awake Count"],
+        "restless_moments": ["Restless Moments", "Restless"],
+        "avg_sleep_stress": ["Average Sleep Stress", "Avg Sleep Stress"],
+        "score_overall": ["Overall Sleep Score", "Sleep Score", "Score Overall"],
+        "score_quality": ["Sleep Quality Score", "Score Quality"],
+        "score_duration": ["Sleep Duration Score", "Score Duration"],
+        "score_recovery": ["Recovery Score", "Score Recovery"],
+        "score_deep": ["Deep Sleep Score", "Score Deep"],
+        "score_rem": ["REM Sleep Score", "Score REM"],
+        "feedback": ["Feedback", "Sleep Feedback"],
+    }
+
+    CSV_SECONDS_FIELDS = {
+        "deep_sec",
+        "light_sec",
+        "rem_sec",
+        "awake_sec",
+        "total_sleep_sec",
+        "total_in_bed_sec",
+    }
+
+    CSV_INT_FIELDS = {
+        "deep_sec",
+        "light_sec",
+        "rem_sec",
+        "awake_sec",
+        "total_sleep_sec",
+        "total_in_bed_sec",
+        "lowest_spo2",
+        "awake_count",
+        "restless_moments",
+        "score_overall",
+        "score_quality",
+        "score_duration",
+        "score_recovery",
+        "score_deep",
+        "score_rem",
+    }
+
+    CSV_FLOAT_FIELDS = {
+        "sleep_efficiency_pct",
+        "deep_hrs",
+        "light_hrs",
+        "rem_hrs",
+        "awake_hrs",
+        "total_sleep_hrs",
+        "avg_spo2",
+        "avg_hr",
+        "avg_respiration",
+        "lowest_respiration",
+        "highest_respiration",
+        "avg_sleep_stress",
+    }
 
     # ── Ingestion ─────────────────────────────────────────────────────────────
 
@@ -72,6 +150,190 @@ class SleepProcessor:
 
         return new_files
 
+    def _find_sleep_csv(self) -> str | None:
+        """Return full path to Sleep.csv in source_folder if present."""
+        if not os.path.isdir(self.source_folder):
+            return None
+
+        csv_path = os.path.join(self.source_folder, self.CSV_FILENAME)
+        if os.path.isfile(csv_path):
+            return csv_path
+        return None
+
+    @staticmethod
+    def _norm_key(key: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", key.strip().lower())
+
+    @staticmethod
+    def _to_int(value: object) -> int | None:
+        text = str(value).strip().replace(",", "")
+        if not text:
+            return None
+        try:
+            return int(float(text))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _to_float(value: object) -> float | None:
+        text = str(value).strip().replace(",", "")
+        if not text:
+            return None
+        if text.endswith("%"):
+            text = text[:-1].strip()
+        try:
+            return float(text)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _to_iso_date(value: object) -> str | None:
+        text = str(value).strip()
+        if not text:
+            return None
+
+        for fmt in ["%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d"]:
+            try:
+                return datetime.strptime(text, fmt).date().isoformat()
+            except ValueError:
+                pass
+
+        try:
+            return datetime.fromisoformat(text).date().isoformat()
+        except ValueError:
+            return text
+
+    @staticmethod
+    def _duration_to_seconds(duration: object) -> int | None:
+        text = str(duration).strip().lower()
+        if not text:
+            return None
+
+        if ":" in text:
+            parts = text.split(":")
+            try:
+                if len(parts) == 3:
+                    h, m, s = (int(p) for p in parts)
+                    return h * 3600 + m * 60 + s
+                if len(parts) == 2:
+                    m, s = (int(p) for p in parts)
+                    return m * 60 + s
+            except ValueError:
+                pass
+
+        matches = re.findall(r"(\d+)\s*([hms])", text)
+        if matches:
+            total = 0
+            for value_str, unit in matches:
+                value = int(value_str)
+                if unit == "h":
+                    total += value * 3600
+                elif unit == "m":
+                    total += value * 60
+                elif unit == "s":
+                    total += value
+            return total
+
+        if text.isdigit():
+            return int(text)
+
+        return None
+
+    def _coerce_sleep_schema(self, df: pl.DataFrame) -> pl.DataFrame:
+        """Ensure all sleep schema columns exist and are cast to canonical dtypes."""
+        for col, dtype in SLEEP.items():
+            if col not in df.columns:
+                null_series = pl.Series(col, [None] * len(df), dtype=dtype)
+                df = df.with_columns(null_series)
+            elif df[col].dtype != dtype:
+                try:
+                    df = df.with_columns(pl.col(col).cast(dtype, strict=False))
+                except Exception as e:
+                    print(
+                        f"  Sleep schema: could not cast '{col}' from {df[col].dtype} to {dtype}: {e}"
+                    )
+
+        return df.select(list(SLEEP.keys()))
+
+    def _parse_sleep_csv(self, csv_path: str) -> dict | None:
+        """Parse Sleep.csv key/value rows into one canonical sleep row dict."""
+        raw_data = {}
+
+        try:
+            with open(csv_path, mode="r", newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                try:
+                    next(reader)
+                except StopIteration:
+                    return None
+
+                for row in reader:
+                    if len(row) >= 2 and row[0].strip() and row[1].strip():
+                        raw_data[self._norm_key(row[0])] = row[1].strip()
+        except Exception as e:
+            print(f"  Sleep CSV parse: error reading {os.path.basename(csv_path)}: {e}")
+            return None
+
+        if not raw_data:
+            return None
+
+        row = {k: None for k in SLEEP.keys()}
+
+        for target_key, aliases in self.CSV_KEY_MAP.items():
+            value = None
+            for alias in aliases:
+                candidate = raw_data.get(self._norm_key(alias))
+                if candidate is not None:
+                    value = candidate
+                    break
+
+            if value is None:
+                continue
+
+            if target_key == "calendar_date":
+                row[target_key] = self._to_iso_date(value)
+            elif target_key in self.CSV_SECONDS_FIELDS:
+                row[target_key] = self._duration_to_seconds(value)
+            elif target_key in self.CSV_INT_FIELDS:
+                row[target_key] = self._to_int(value)
+            elif target_key in self.CSV_FLOAT_FIELDS:
+                row[target_key] = self._to_float(value)
+            else:
+                row[target_key] = value
+
+        if row["calendar_date"] is None:
+            print(
+                f"  Sleep CSV parse: missing calendar date in {os.path.basename(csv_path)}, skipping"
+            )
+            return None
+
+        for sec_key, hrs_key in [
+            ("deep_sec", "deep_hrs"),
+            ("light_sec", "light_hrs"),
+            ("rem_sec", "rem_hrs"),
+            ("awake_sec", "awake_hrs"),
+            ("total_sleep_sec", "total_sleep_hrs"),
+        ]:
+            if row[sec_key] is not None and row[hrs_key] is None:
+                row[hrs_key] = row[sec_key] / 3600
+
+        if row["total_in_bed_sec"] is None:
+            total_sleep_sec = row["total_sleep_sec"]
+            awake_sec = row["awake_sec"]
+            if total_sleep_sec is not None and awake_sec is not None:
+                row["total_in_bed_sec"] = total_sleep_sec + awake_sec
+
+        if (
+            row["sleep_efficiency_pct"] is None
+            and row["total_in_bed_sec"]
+            and row["total_sleep_sec"] is not None
+        ):
+            row["sleep_efficiency_pct"] = round(
+                row["total_sleep_sec"] / row["total_in_bed_sec"] * 100, 1
+            )
+
+        return row
+
     def run(self) -> dict:
         """Ingest new sleep JSON files from Downloads, merge to parquet, reload DataFrame.
 
@@ -82,11 +344,13 @@ class SleepProcessor:
         print("Starting Sleep Data Ingestion Pipeline")
         print("=" * 60)
 
-        print(f"\n[Step 1] Scanning {self.source_folder} for *_sleepData.json ...")
+        print(
+            f"\n[Step 1] Scanning {self.source_folder} for *_sleepData.json and Sleep.csv ..."
+        )
         new_files = self.ingest_from_downloads()
 
         print(f"\n[Step 2] Merging sleep records to parquet ...")
-        self._merge_to_parquet()
+        merge_stats = self._merge_to_parquet()
 
         print(f"\n[Step 3] Reloading sleep DataFrame ...")
         self.sleep = self._load_sleep_data()
@@ -95,6 +359,8 @@ class SleepProcessor:
         print("Sleep Pipeline Complete!")
         print("=" * 60)
         print(f"New files copied : {len(new_files)}")
+        print(f"CSV rows added   : {merge_stats['csv_rows_added']}")
+        print(f"CSV rows skipped : {merge_stats['csv_rows_skipped_stale']}")
         print(f"Total records    : {len(self.sleep)}")
         if not self.sleep.is_empty():
             print(
@@ -104,25 +370,73 @@ class SleepProcessor:
         return {
             "new_files_copied": len(new_files),
             "new_files": new_files,
+            "csv_rows_added": merge_stats["csv_rows_added"],
+            "csv_rows_skipped_stale": merge_stats["csv_rows_skipped_stale"],
             "total_records": len(self.sleep),
         }
 
-    def _merge_to_parquet(self) -> None:
-        """Parse all sleep JSON files and write/update mergedfiles/sleep.parquet.
+    def _merge_to_parquet(self) -> dict[str, int]:
+        """Parse sleep JSON + optional Sleep.csv and update sleep.parquet.
 
         Deduplicates on calendar_date so re-running is always safe.
+        JSON is authoritative when JSON and CSV contain the same date.
         """
         parquet_path = storage.path_join(self.mergedfiles_path, "sleep.parquet")
 
-        # Parse all JSON files fresh
-        fresh_df = self._parse_all_json()
-        if fresh_df.is_empty():
+        csv_rows_added = 0
+        csv_rows_skipped_stale = 0
+
+        json_df = self._parse_all_json()
+
+        csv_df = pl.DataFrame()
+        csv_path = self._find_sleep_csv()
+        if csv_path is None:
+            print(
+                f"  Sleep merge: {self.CSV_FILENAME} not found in {self.source_folder}"
+            )
+        else:
+            row = self._parse_sleep_csv(csv_path)
+            if row is None:
+                print(
+                    f"  Sleep merge: could not parse {self.CSV_FILENAME}, skipping CSV ingest"
+                )
+            else:
+                csv_df = self._coerce_sleep_schema(pl.DataFrame([row], strict=False))
+
+        if not csv_df.is_empty() and not json_df.is_empty():
+            json_dates = json_df.select("calendar_date").drop_nulls().unique()
+            before = len(csv_df)
+            csv_df = csv_df.join(json_dates, on="calendar_date", how="anti")
+            csv_rows_skipped_stale = before - len(csv_df)
+            if csv_rows_skipped_stale > 0:
+                print(
+                    f"  Sleep merge: skipped {csv_rows_skipped_stale} CSV row(s) already present in JSON"
+                )
+
+        csv_rows_added = len(csv_df)
+
+        fresh_frames = []
+        if not csv_df.is_empty():
+            fresh_frames.append(csv_df)
+        if not json_df.is_empty():
+            fresh_frames.append(json_df)
+
+        if not fresh_frames:
             print("  Sleep merge: no records parsed, skipping parquet write")
-            return
+            return {
+                "csv_rows_added": csv_rows_added,
+                "csv_rows_skipped_stale": csv_rows_skipped_stale,
+            }
+
+        fresh_df = self._coerce_sleep_schema(
+            pl.concat(fresh_frames, how="diagonal_relaxed")
+        )
 
         if storage.path_exists(parquet_path):
             try:
-                existing_df = storage.read_parquet(parquet_path)
+                existing_df = self._coerce_sleep_schema(
+                    storage.read_parquet(parquet_path)
+                )
                 combined = pl.concat([existing_df, fresh_df], how="diagonal_relaxed")
                 combined = combined.unique(subset=["calendar_date"], keep="last").sort(
                     "calendar_date"
@@ -136,8 +450,12 @@ class SleepProcessor:
             storage.makedirs(self.mergedfiles_path)
             combined = fresh_df
 
-        storage.write_parquet(combined, parquet_path)
+        storage.write_parquet(self._coerce_sleep_schema(combined), parquet_path)
         print(f"  ✓ sleep.parquet: {len(combined)} records → {parquet_path}")
+        return {
+            "csv_rows_added": csv_rows_added,
+            "csv_rows_skipped_stale": csv_rows_skipped_stale,
+        }
 
     # ── Data loading ──────────────────────────────────────────────────────────
 
@@ -171,7 +489,9 @@ class SleepProcessor:
         parquet_path = storage.path_join(self.mergedfiles_path, "sleep.parquet")
         if storage.path_exists(parquet_path):
             try:
-                return storage.read_parquet(parquet_path)
+                return self._coerce_sleep_schema(
+                    storage.read_parquet(parquet_path)
+                ).sort("calendar_date")
             except Exception as e:
                 print(f"  Sleep load: parquet read failed, falling back to JSON — {e}")
         return self._parse_all_json()
@@ -199,36 +519,10 @@ class SleepProcessor:
         if not rows:
             return pl.DataFrame()
 
-        # Explicit schema overrides for every column that can be None in some
-        # records. Without this, Polars infers the type from the first N rows
-        # and raises a ComputeError when it later encounters a None or a
-        # different primitive type (e.g. int vs float, str vs NoneType).
-        schema_overrides = {
-            # nullable strings
-            "calendar_date": pl.Utf8,
-            "sleep_start_gmt": pl.Utf8,
-            "sleep_end_gmt": pl.Utf8,
-            "feedback": pl.Utf8,
-            # nullable floats
-            "sleep_efficiency_pct": pl.Float64,
-            "avg_spo2": pl.Float64,
-            "avg_hr": pl.Float64,
-            "avg_respiration": pl.Float64,
-            "lowest_respiration": pl.Float64,
-            "highest_respiration": pl.Float64,
-            "avg_sleep_stress": pl.Float64,
-            # nullable ints (Int32 matches Garmin's score range 0-100)
-            "lowest_spo2": pl.Int32,
-            "score_overall": pl.Int32,
-            "score_quality": pl.Int32,
-            "score_duration": pl.Int32,
-            "score_recovery": pl.Int32,
-            "score_deep": pl.Int32,
-            "score_rem": pl.Int32,
-        }
-        return pl.DataFrame(rows, schema_overrides=schema_overrides).sort(
-            "calendar_date"
-        )
+        # Build with explicit schema overrides to avoid mixed-type inference
+        # failures across rows (e.g. int in early rows, float in later rows).
+        df = pl.DataFrame(rows, schema_overrides=SLEEP, strict=False)
+        return self._coerce_sleep_schema(df).sort("calendar_date")
 
     def _parse_record(self, r: dict) -> dict:
         deep = r.get("deepSleepSeconds") or 0

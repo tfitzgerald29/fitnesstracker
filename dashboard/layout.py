@@ -45,6 +45,7 @@ def create_layout():
                             mobile_breakpoint=0,
                             children=[
                                 make_tab("Calendar", "calendar", COLORS["accent"]),
+                                make_tab("Sleep", "sleep", "#00BCD4"),
                                 make_tab("Sport Summary", "sports", COLORS["accent"]),
                                 make_tab("Cycling", "cycling", COLORS["accent"]),
                                 make_tab(
@@ -55,7 +56,6 @@ def create_layout():
                                 make_tab("Hiking", "hiking", "#8BC34A"),
                                 make_tab("Running", "running", "#E91E63"),
                                 make_tab("Pickleball", "pickleball", "#AB47BC"),
-                                make_tab("Sleep", "sleep", "#00BCD4"),
                             ],
                             style={**SCROLLABLE_TABS_STYLE},
                             colors={

@@ -3,6 +3,7 @@ from dash import Input, Output, callback, dcc, html
 
 from backend.sleep_processor import SleepProcessor
 from ..config import CARD_STYLE, COLORS, get_user_id
+from ..tab_ui import SCROLLABLE_TABS_STYLE, make_tab
 
 ACCENT = "#00BCD4"  # sleep teal
 
@@ -146,12 +147,13 @@ def sleep_tab():
             # ── Trend chart ───────────────────────────────────────────────────
             html.H3(
                 "Sleep Trend",
-                style={
-                    "color": ACCENT,
-                    "marginBottom": "8px",
-                    "marginTop": "24px",
-                    "fontSize": "0.95rem",
-                },
+                # style={
+                #     "color": ACCENT,
+                #     "marginBottom": "8px",
+                #     "marginTop": "24px",
+                #     "fontSize": "0.95rem",
+                # },
+                style={**SCROLLABLE_TABS_STYLE, "marginBottom": "16px"},
             ),
             html.Div(
                 style={
@@ -165,31 +167,39 @@ def sleep_tab():
                 children=[
                     html.Span(
                         "Metric:",
-                        style={"color": COLORS["muted"], "fontSize": "0.85rem"},
+                        # style={"color": COLORS["muted"], "fontSize": "0.85rem"},
+                        style={**SCROLLABLE_TABS_STYLE, "marginBottom": "16px"},
                     ),
                     dcc.Dropdown(
                         id="sleep-metric-picker",
                         options=metric_options,
                         value="total_sleep_hrs",
                         clearable=False,
+                        # style={
+                        #     "width": "100%",
+                        #     "minWidth": "220px",
+                        #     "maxWidth": "320px",
+                        #     "flex": "1 1 220px",
+                        #     "backgroundColor": COLORS["card"],
+                        #     "color": COLORS["text"],
+                        #     "border": f"1px solid {COLORS['border']}",
+                        #     "borderRadius": "4px",
+                        # },
                         style={
-                            "width": "100%",
-                            "minWidth": "220px",
-                            "maxWidth": "320px",
-                            "flex": "1 1 220px",
+                            **SCROLLABLE_TABS_STYLE,
+                            "marginBottom": "16px",
                             "backgroundColor": COLORS["card"],
-                            "color": COLORS["text"],
-                            "border": f"1px solid {COLORS['border']}",
-                            "borderRadius": "4px",
+                            "color": COLORS["bk"],
                         },
                     ),
                     html.Span(
                         "Window:",
-                        style={
-                            "color": COLORS["muted"],
-                            "fontSize": "0.85rem",
-                            "marginLeft": "4px",
-                        },
+                        # style={
+                        #     "color": COLORS["muted"],
+                        #     "fontSize": "0.85rem",
+                        #     "marginLeft": "4px",
+                        # },
+                        style={**SCROLLABLE_TABS_STYLE, "marginBottom": "16px"},
                     ),
                     dcc.Dropdown(
                         id="sleep-window-picker",
@@ -201,15 +211,20 @@ def sleep_tab():
                         ],
                         value=90,
                         clearable=False,
+                        # style={
+                        #     "width": "100%",
+                        #     "minWidth": "180px",
+                        #     "maxWidth": "220px",
+                        #     "flex": "1 1 180px",
+                        #     "backgroundColor": COLORS["card"],
+                        #     "color": COLORS["text"],
+                        #     "border": f"1px solid {COLORS['border']}",
+                        #     "borderRadius": "4px",
+                        # },
                         style={
-                            "width": "100%",
-                            "minWidth": "180px",
-                            "maxWidth": "220px",
-                            "flex": "1 1 180px",
-                            "backgroundColor": COLORS["card"],
-                            "color": COLORS["text"],
-                            "border": f"1px solid {COLORS['border']}",
-                            "borderRadius": "4px",
+                            **SCROLLABLE_TABS_STYLE,
+                            "marginBottom": "16px",
+                            "color": COLORS["bk"],
                         },
                     ),
                 ],
@@ -275,7 +290,7 @@ def update_sleep_overview(tab):
     summary_cards = html.Div(
         style={
             "display": "flex",
-            "gap": "12px",
+            "gap": "10px",
             "flexWrap": "wrap",
             "marginBottom": "8px",
         },

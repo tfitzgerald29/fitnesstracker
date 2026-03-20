@@ -21,6 +21,7 @@ COLORS = {
     "text": "#e0e0e0",
     "muted": "#888",
     "accent": "#2196F3",
+    "bk": "#000000",
 }
 
 CARD_STYLE = {

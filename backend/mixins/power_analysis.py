@@ -226,7 +226,7 @@ class PowerAnalysisMixin:
                 ride_date = ts.date() if hasattr(ts, "date") else None
 
         # Try CP model using 6 months of data leading up to ride date
-        cp_result = self.estimate_critical_power(period_months=6, as_of=ride_date)
+        cp_result = self.estimate_critical_power(period_months=3, as_of=ride_date)
         ftp = cp_result["cp"]
         wp_kj = cp_result["wprime_kj"]
 
@@ -237,7 +237,7 @@ class PowerAnalysisMixin:
                 tp = session["threshold_power"][0]
                 if tp is not None:
                     ftp = int(tp)
-            wp_kj = 20.0
+            wp_kj = 15.0
 
         wp = wp_kj * 1000  # convert to joules
         bal = [0.0] * len(power)
