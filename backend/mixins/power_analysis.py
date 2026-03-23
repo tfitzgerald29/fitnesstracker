@@ -216,7 +216,6 @@ class PowerAnalysisMixin:
             }
 
         # Get the ride date to use as reference for the CP model
-        import polars as pl
 
         session = self.cycling.filter(pl.col("source_file") == source_file)
         ride_date = None

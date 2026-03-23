@@ -275,7 +275,6 @@ class TrainingLoadMixin:
     def plot_training_load(
         self, start_date=None, include_forecast: bool = True
     ) -> go.Figure:
-
         df = self.compute_ctl_atl()
         if df.is_empty() or "date" not in df.columns:
             return self._empty_training_load_figure()
