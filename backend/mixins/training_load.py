@@ -310,13 +310,19 @@ class TrainingLoadMixin:
         start_date=None,
         include_forecast: bool = True,
         tss_overrides: dict[str, float] | None = None,
+        ctl_atl_df: pl.DataFrame | None = None,
+        forecast_df: pl.DataFrame | None = None,
     ) -> go.Figure:
-        df = self.compute_ctl_atl()
+        df = ctl_atl_df if ctl_atl_df is not None else self.compute_ctl_atl()
         if df.is_empty() or "date" not in df.columns:
             return self._empty_training_load_figure()
 
         if include_forecast:
-            df_forecast = self.compute_ctl_atl_forecast(tss_overrides=tss_overrides)
+            df_forecast = (
+                forecast_df
+                if forecast_df is not None
+                else self.compute_ctl_atl_forecast(tss_overrides=tss_overrides)
+            )
 
         if start_date is not None:
             if isinstance(start_date, str):

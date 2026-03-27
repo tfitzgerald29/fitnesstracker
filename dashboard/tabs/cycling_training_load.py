@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 import polars as pl
-from dash import Input, Output, State, callback, ctx, dash_table, dcc, html
+from dash import Input, Output, State, callback, ctx, dash_table, dcc, html, no_update
 
 from backend.cycling_processor import CyclingProcessor
 
@@ -65,6 +65,40 @@ def _parse_tss_overrides(rows: list[dict] | None) -> dict[str, float]:
             except (TypeError, ValueError):
                 continue
     return overrides
+
+
+def _sanitize_tss_overrides(
+    overrides: dict[str, float],
+    forecast_days: int = 21,
+    min_tss: float = 0.0,
+    max_tss: float = 500.0,
+) -> dict[str, float]:
+    if not overrides:
+        return {}
+
+    today = date.today()
+    min_day = today + timedelta(days=1)
+    max_day = today + timedelta(days=forecast_days)
+    sanitized: dict[str, float] = {}
+
+    for day_str, tss_value in overrides.items():
+        try:
+            day = date.fromisoformat(day_str)
+            value = float(tss_value)
+        except (TypeError, ValueError):
+            continue
+
+        if day < min_day or day > max_day:
+            continue
+
+        if value < min_tss:
+            value = min_tss
+        elif value > max_tss:
+            value = max_tss
+
+        sanitized[day.isoformat()] = value
+
+    return sanitized
 
 
 def _clear_tss_inputs(rows: list[dict] | None) -> list[dict]:
@@ -141,12 +175,9 @@ def _delta_direction(delta: float | None, epsilon: float = 0.05) -> tuple[str, s
     return "→", COLORS["muted"]
 
 
-def _forecast_comparison_content(cp: CyclingProcessor, tss_overrides: dict | None):
+def _forecast_comparison_content(ctl_atl: pl.DataFrame, forecast: pl.DataFrame):
     today = date.today()
     forecast_end = today + timedelta(days=21)
-
-    ctl_atl = cp.compute_ctl_atl()
-    forecast = cp.compute_ctl_atl_forecast(tss_overrides=tss_overrides)
 
     current_ctl = _metric_value(ctl_atl, today, "ctl")
     current_atl = _metric_value(ctl_atl, today, "atl")
@@ -510,7 +541,21 @@ def cycling_training_load_layout():
                     ),
                 ],
             ),
-            dcc.Store(id="training-load-forecast-overrides", data={}),
+            dcc.Store(
+                id="training-load-forecast-overrides",
+                data={},
+                storage_type="memory",
+            ),
+            dcc.Store(
+                id="training-load-day-marker",
+                data=date.today().isoformat(),
+                storage_type="memory",
+            ),
+            dcc.Interval(
+                id="training-load-day-tick",
+                interval=5 * 60 * 1000,
+                n_intervals=0,
+            ),
             html.H3(
                 "Forecast Comparison",
                 style={
@@ -529,15 +574,42 @@ def cycling_training_load_layout():
 @callback(
     Output("training-load-forecast-overrides", "data"),
     Output("training-load-forecast-table", "data"),
+    Output("training-load-day-marker", "data"),
     Input("apply-forecast-btn", "n_clicks"),
     Input("clear-forecast-btn", "n_clicks"),
+    Input("cycling-subtabs", "value"),
+    Input("training-load-day-tick", "n_intervals"),
     State("training-load-forecast-table", "data"),
+    State("training-load-day-marker", "data"),
     prevent_initial_call=True,
 )
-def apply_training_load_forecast(_apply_clicks, _clear_clicks, forecast_rows):
-    if ctx.triggered_id == "clear-forecast-btn":
-        return {}, _clear_tss_inputs(forecast_rows)
-    return _parse_tss_overrides(forecast_rows), forecast_rows
+def apply_training_load_forecast(
+    _apply_clicks,
+    _clear_clicks,
+    cycling_subtab,
+    _n_intervals,
+    forecast_rows,
+    day_marker,
+):
+    trigger = ctx.triggered_id
+    today_str = date.today().isoformat()
+
+    if trigger == "apply-forecast-btn":
+        parsed = _parse_tss_overrides(forecast_rows)
+        return _sanitize_tss_overrides(parsed), no_update, today_str
+
+    if trigger == "clear-forecast-btn":
+        return {}, _clear_tss_inputs(forecast_rows), today_str
+
+    if trigger == "cycling-subtabs":
+        if cycling_subtab != "training-load":
+            return {}, no_update, today_str
+        return {}, _forecast_input_rows(), today_str
+
+    if trigger == "training-load-day-tick" and day_marker != today_str:
+        return {}, _forecast_input_rows(), today_str
+
+    return no_update, no_update, no_update
 
 
 @callback(
@@ -586,12 +658,17 @@ def update_training_load(date_range, show_forecast, tss_overrides):
         start_date = (d.replace(day=1) - timedelta(days=months * 30)).isoformat()
 
     cp = CyclingProcessor(user_id=get_user_id())
+    sanitized_overrides = _sanitize_tss_overrides(tss_overrides or {})
+    ctl_atl = cp.compute_ctl_atl()
+    forecast = cp.compute_ctl_atl_forecast(tss_overrides=sanitized_overrides)
     fig = cp.plot_training_load(
         start_date=start_date,
         include_forecast="yes" in (show_forecast or []),
-        tss_overrides=tss_overrides,
+        tss_overrides=sanitized_overrides,
+        ctl_atl_df=ctl_atl,
+        forecast_df=forecast,
     )
-    comparison_cards, comparison_table = _forecast_comparison_content(cp, tss_overrides)
+    comparison_cards, comparison_table = _forecast_comparison_content(ctl_atl, forecast)
 
     fig.update_layout(
         paper_bgcolor=COLORS["card"],
