@@ -224,7 +224,11 @@ class TrainingLoadMixin:
         ).select("date", "tss", "is_projection", "ctl", "atl", "tsb")
 
     def compute_ctl_atl_forecast(
-        self, ctl_days: int = 42, atl_days: int = 7, lookback_days: int = 42
+        self,
+        ctl_days: int = 42,
+        atl_days: int = 7,
+        lookback_days: int = 42,
+        tss_overrides: dict[str, float] | None = None,
     ) -> pl.DataFrame:
         daily_tss = self.compute_daily_tss()
         if daily_tss.is_empty() or "tss" not in daily_tss.columns:
@@ -237,13 +241,42 @@ class TrainingLoadMixin:
         if avg_tss is None:
             avg_tss = 0.0
 
+        override_by_date: dict[date, float] = {}
+        if tss_overrides:
+            for day_str, tss_value in tss_overrides.items():
+                try:
+                    override_day = date.fromisoformat(day_str)
+                    override_by_date[override_day] = float(tss_value)
+                except (TypeError, ValueError):
+                    continue
+
         # Replace projection-day TSS with the historical average
-        forecast_tss = daily_tss.with_columns(
-            pl.when(pl.col("is_projection"))
-            .then(pl.lit(avg_tss))
-            .otherwise(pl.col("tss"))
-            .alias("tss_forecast")
-        )
+        if override_by_date:
+            override_dates = list(override_by_date.keys())
+            override_values = [override_by_date[d] for d in override_dates]
+            override_df = pl.DataFrame(
+                {
+                    "date": pl.Series(override_dates, dtype=pl.Date),
+                    "tss_override": pl.Series(override_values, dtype=pl.Float64),
+                }
+            )
+            forecast_tss = daily_tss.join(
+                override_df, on="date", how="left"
+            ).with_columns(
+                pl.when(pl.col("is_projection") & pl.col("tss_override").is_not_null())
+                .then(pl.col("tss_override"))
+                .when(pl.col("is_projection"))
+                .then(pl.lit(avg_tss))
+                .otherwise(pl.col("tss"))
+                .alias("tss_forecast")
+            )
+        else:
+            forecast_tss = daily_tss.with_columns(
+                pl.when(pl.col("is_projection"))
+                .then(pl.lit(avg_tss))
+                .otherwise(pl.col("tss"))
+                .alias("tss_forecast")
+            )
 
         ctl_decay = 2.0 / (ctl_days + 1)
         atl_decay = 2.0 / (atl_days + 1)
@@ -273,14 +306,17 @@ class TrainingLoadMixin:
         )
 
     def plot_training_load(
-        self, start_date=None, include_forecast: bool = True
+        self,
+        start_date=None,
+        include_forecast: bool = True,
+        tss_overrides: dict[str, float] | None = None,
     ) -> go.Figure:
         df = self.compute_ctl_atl()
         if df.is_empty() or "date" not in df.columns:
             return self._empty_training_load_figure()
 
         if include_forecast:
-            df_forecast = self.compute_ctl_atl_forecast()
+            df_forecast = self.compute_ctl_atl_forecast(tss_overrides=tss_overrides)
 
         if start_date is not None:
             if isinstance(start_date, str):

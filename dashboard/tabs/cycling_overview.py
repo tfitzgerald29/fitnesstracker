@@ -19,7 +19,6 @@ def _x_labels(df, group_by):
 def cycling_overview_layout():
     return html.Div(
         [
-            # Cycling summary section
             html.H3(
                 "Cycling Summary",
                 style={
@@ -52,54 +51,6 @@ def cycling_overview_layout():
                 },
             ),
             html.Div(dcc.Graph(id="cycling-summary-chart"), style=CARD_STYLE),
-            # Training load section
-            html.H3(
-                "Training Load",
-                style={
-                    "color": COLORS["accent"],
-                    "marginBottom": "12px",
-                    "marginTop": "24px",
-                    "fontSize": "0.95rem",
-                },
-            ),
-            html.Div(
-                style={
-                    "display": "flex",
-                    "flexWrap": "wrap",
-                    "alignItems": "center",
-                    "gap": "8px",
-                    "rowGap": "8px",
-                    "marginBottom": "12px",
-                },
-                children=[
-                    dcc.RadioItems(
-                        id="date-range",
-                        options=[
-                            {"label": "3M", "value": "3"},
-                            {"label": "6M", "value": "6"},
-                            {"label": "1Y", "value": "12"},
-                            {"label": "All", "value": "all"},
-                        ],
-                        value="12",
-                        inline=True,
-                        labelStyle={
-                            "marginRight": "12px",
-                            "cursor": "pointer",
-                            "color": COLORS["text"],
-                        },
-                        inputStyle={"marginRight": "4px"},
-                    ),
-                    dcc.Checklist(
-                        id="show-forecast",
-                        options=[{"label": " Show Forecast", "value": "yes"}],
-                        value=["yes"],
-                        style={"marginLeft": "8px"},
-                        labelStyle={"color": COLORS["text"]},
-                        inputStyle={"marginRight": "4px"},
-                    ),
-                ],
-            ),
-            html.Div(dcc.Graph(id="training-load-chart"), style=CARD_STYLE),
         ]
     )
 
@@ -132,7 +83,6 @@ def update_cycling_summary(group_by):
     miles = df["miles"].to_list()
     hours = df["hours"].to_list()
     tss = df["tss"].to_list()
-    rides = df["rides"].to_list()
 
     fig = make_subplots(
         rows=3,
@@ -190,7 +140,6 @@ def update_cycling_summary(group_by):
         margin=dict(t=40, b=60, l=60, r=30),
     )
 
-    # Set y-axis range with 30% headroom so "outside" labels don't collide
     for i, series in enumerate([miles, hours, tss], start=1):
         max_val = max(series) if series else 1
         fig.update_xaxes(gridcolor=COLORS["border"], row=i, col=1)
@@ -202,50 +151,8 @@ def update_cycling_summary(group_by):
             col=1,
         )
 
-    # Style subplot titles
     for ann in fig.layout.annotations:
         ann.font.color = COLORS["muted"]
         ann.font.size = 12
 
-    return fig
-
-
-@callback(
-    Output("training-load-chart", "figure"),
-    Input("date-range", "value"),
-    Input("show-forecast", "value"),
-)
-def update_training_load(date_range, show_forecast):
-    start_date = None
-    if date_range != "all":
-        from datetime import date, timedelta
-
-        months = int(date_range)
-        d = date.today()
-        start_date = (d.replace(day=1) - timedelta(days=months * 30)).isoformat()
-
-    cp = CyclingProcessor(user_id=get_user_id())
-    fig = cp.plot_training_load(
-        start_date=start_date, include_forecast="yes" in (show_forecast or [])
-    )
-
-    fig.update_layout(
-        paper_bgcolor=COLORS["card"],
-        plot_bgcolor=COLORS["card"],
-        font_color=COLORS["text"],
-        xaxis=dict(gridcolor=COLORS["border"], automargin=True),
-        yaxis=dict(gridcolor=COLORS["border"], automargin=True),
-        yaxis2=dict(automargin=True),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
-            font=dict(size=10),
-        ),
-        margin=dict(t=40, b=70, l=44, r=36),
-        autosize=True,
-        height=550,
-    )
     return fig

@@ -5645,11 +5645,7 @@
       {
         "name": "inclined_bench_press",
         "sets": [
-          {
-            "set": 1,
-            "weight": 95,
-            "reps": 20
-          },
+          
           {
             "set": 2,
             "weight": 140,
@@ -5846,11 +5842,6 @@
       {
         "name": "inclined_bench_press",
         "sets": [
-          {
-            "set": 1,
-            "weight": 115,
-            "reps": 8
-          },
           {
             "set": 2,
             "weight": 150,
@@ -6414,16 +6405,6 @@
       {
         "name": "inclined_bench_press",
         "sets": [
-          {
-            "set": 1,
-            "weight": 95,
-            "reps": 10
-          },
-          {
-            "set": 2,
-            "weight": 115,
-            "reps": 8
-          },
           {
             "set": 3,
             "weight": 150,
