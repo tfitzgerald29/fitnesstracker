@@ -17,6 +17,7 @@ python app.py
 
 Production (gunicorn):
 ```bash
+python warmup_caches.py
 gunicorn app:server
 ```
 
@@ -69,7 +70,7 @@ mergedfiles/
   -> (+ file_id, activity, split, split_summary, set parquets)
 ```
 
-All processing is **incremental** -- only new activities are decoded and appended. Power curve cache and bootstrap cache auto-refresh when upstream data changes.
+All processing is **incremental** -- only new activities are decoded and appended. Run `python warmup_caches.py` before serving to precompute power curve + CP covariate bootstrap caches.
 
 ## Features
 

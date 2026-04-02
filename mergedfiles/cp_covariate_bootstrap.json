@@ -5,19 +5,19 @@
       "coefficients": [
         {
           "name": "const",
-          "coef_median": 292.9829,
-          "coef_mean": 293.0439,
+          "coef_median": 293.2825,
+          "coef_mean": 293.2534,
           "pvalue_boot": 0.0,
-          "ci_low": 286.3458,
-          "ci_high": 300.087
+          "ci_low": 286.3364,
+          "ci_high": 300.2186
         },
         {
           "name": "tss_per_100",
-          "coef_median": 4.8253,
-          "coef_mean": 4.8285,
+          "coef_median": 4.7615,
+          "coef_mean": 4.7712,
           "pvalue_boot": 0.0,
-          "ci_low": 3.6398,
-          "ci_high": 6.0512
+          "ci_low": 3.5265,
+          "ci_high": 6.0618
         }
       ]
     },
@@ -26,19 +26,19 @@
       "coefficients": [
         {
           "name": "const",
-          "coef_median": 257.413,
-          "coef_mean": 257.4415,
+          "coef_median": 257.977,
+          "coef_mean": 258.0294,
           "pvalue_boot": 0.0,
-          "ci_low": 252.1796,
-          "ci_high": 263.2217
+          "ci_low": 252.7727,
+          "ci_high": 263.7795
         },
         {
           "name": "tss_per_100",
-          "coef_median": 3.8197,
-          "coef_mean": 3.8188,
+          "coef_median": 3.5698,
+          "coef_mean": 3.5662,
           "pvalue_boot": 0.0,
-          "ci_low": 2.895,
-          "ci_high": 4.6952
+          "ci_low": 2.4231,
+          "ci_high": 4.6726
         }
       ]
     },
@@ -47,19 +47,19 @@
       "coefficients": [
         {
           "name": "const",
-          "coef_median": 221.9784,
-          "coef_mean": 222.0737,
+          "coef_median": 221.7368,
+          "coef_mean": 221.852,
           "pvalue_boot": 0.0,
-          "ci_low": 216.7842,
-          "ci_high": 227.7826
+          "ci_low": 216.7724,
+          "ci_high": 227.549
         },
         {
           "name": "tss_per_100",
-          "coef_median": 3.2347,
-          "coef_mean": 3.2406,
+          "coef_median": 3.2791,
+          "coef_mean": 3.2853,
           "pvalue_boot": 0.0,
-          "ci_low": 2.4315,
-          "ci_high": 4.0126
+          "ci_low": 2.5342,
+          "ci_high": 4.0634
         }
       ]
     }
@@ -70,27 +70,27 @@
       "coefficients": [
         {
           "name": "const",
-          "coef_median": 293.0475,
-          "coef_mean": 293.115,
+          "coef_median": 293.2901,
+          "coef_mean": 293.2689,
           "pvalue_boot": 0.0,
-          "ci_low": 286.7835,
-          "ci_high": 299.8379
+          "ci_low": 286.8025,
+          "ci_high": 300.0088
         },
         {
           "name": "tss_per_100",
-          "coef_median": 4.5021,
-          "coef_mean": 4.5078,
+          "coef_median": 4.3498,
+          "coef_mean": 4.3334,
           "pvalue_boot": 0.0,
-          "ci_low": 3.291,
-          "ci_high": 5.758
+          "ci_low": 2.9125,
+          "ci_high": 5.7221
         },
         {
           "name": "sleep_score",
-          "coef_median": -3.9033,
-          "coef_mean": -3.9177,
-          "pvalue_boot": 0.0004,
-          "ci_low": -6.2069,
-          "ci_high": -1.6803
+          "coef_median": -3.2943,
+          "coef_mean": -3.2919,
+          "pvalue_boot": 0.0096,
+          "ci_low": -5.8434,
+          "ci_high": -0.8116
         }
       ]
     },
@@ -99,27 +99,27 @@
       "coefficients": [
         {
           "name": "const",
-          "coef_median": 257.3438,
-          "coef_mean": 257.3912,
+          "coef_median": 257.9058,
+          "coef_mean": 257.9606,
           "pvalue_boot": 0.0,
-          "ci_low": 251.9987,
-          "ci_high": 263.2109
+          "ci_low": 252.5605,
+          "ci_high": 263.8332
         },
         {
           "name": "tss_per_100",
-          "coef_median": 3.7509,
-          "coef_mean": 3.7463,
+          "coef_median": 3.551,
+          "coef_mean": 3.536,
           "pvalue_boot": 0.0,
-          "ci_low": 2.8523,
-          "ci_high": 4.6155
+          "ci_low": 2.3766,
+          "ci_high": 4.5779
         },
         {
           "name": "sleep_score",
-          "coef_median": -0.7624,
-          "coef_mean": -0.7738,
-          "pvalue_boot": 0.5368,
-          "ci_low": -3.1807,
-          "ci_high": 1.5901
+          "coef_median": -0.2358,
+          "coef_mean": -0.2347,
+          "pvalue_boot": 0.852,
+          "ci_low": -2.7937,
+          "ci_high": 2.3816
         }
       ]
     },
@@ -128,27 +128,27 @@
       "coefficients": [
         {
           "name": "const",
-          "coef_median": 222.0833,
-          "coef_mean": 222.1412,
+          "coef_median": 221.7473,
+          "coef_mean": 221.8577,
           "pvalue_boot": 0.0,
-          "ci_low": 217.0378,
-          "ci_high": 227.7004
+          "ci_low": 216.8967,
+          "ci_high": 227.4447
         },
         {
           "name": "tss_per_100",
-          "coef_median": 3.015,
-          "coef_mean": 3.0113,
+          "coef_median": 2.9875,
+          "coef_mean": 2.9849,
           "pvalue_boot": 0.0,
-          "ci_low": 2.2335,
-          "ci_high": 3.7921
+          "ci_low": 2.1328,
+          "ci_high": 3.8061
         },
         {
           "name": "sleep_score",
-          "coef_median": -2.7249,
-          "coef_mean": -2.7319,
-          "pvalue_boot": 0.0076,
-          "ci_low": -4.9601,
-          "ci_high": -0.6747
+          "coef_median": -2.2285,
+          "coef_mean": -2.2443,
+          "pvalue_boot": 0.0384,
+          "ci_low": -4.5015,
+          "ci_high": -0.1297
         }
       ]
     }

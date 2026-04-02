@@ -1,6 +1,5 @@
-import json
-import os
 from datetime import date, timedelta
+from threading import Lock
 
 import numpy as np
 import polars as pl
@@ -8,6 +7,8 @@ import statsmodels.formula.api as smf
 
 from ..schemas import load_records
 from ..storage import storage
+
+_CP_BOOTSTRAP_LOCK = Lock()
 
 
 class CpModelMixin:
@@ -193,8 +194,16 @@ class CpModelMixin:
         }
 
     def cp_over_time(self, period_months: int) -> dict:
-        # Cache key: user's merged path + period so different users/periods are separate
-        cache_key = f"{self.mergedfiles_path}:cp_over_time:{period_months}"
+        cache_path = storage.path_join(self.mergedfiles_path, "power_curves.parquet")
+        cache_version = (
+            f"{storage.path_mtime(cache_path):.3f}"
+            if storage.path_exists(cache_path)
+            else "missing"
+        )
+        # Cache key: user's merged path + power-curve version + period
+        cache_key = (
+            f"{self.mergedfiles_path}:cp_over_time:{cache_version}:{period_months}"
+        )
         cached = storage.get_compute_cache(cache_key)
         if cached is not None:
             return cached
@@ -225,7 +234,6 @@ class CpModelMixin:
             return {"dates": [], "cp": [], "wprime_kj": [], "r2": []}
 
         # Load power curves once for the entire loop
-        cache_path = storage.path_join(self.mergedfiles_path, "power_curves.parquet")
         power_curves_df = (
             storage.read_parquet(cache_path)
             if storage.path_exists(cache_path)
@@ -447,9 +455,12 @@ class CpModelMixin:
         )
         boot_cache = {}
         if storage.path_exists(boot_cache_path):
-            full_cache = storage.read_json(boot_cache_path)
-            if cache_key in full_cache:
-                boot_cache = full_cache[cache_key]
+            try:
+                full_cache = storage.read_json(boot_cache_path)
+                if cache_key in full_cache:
+                    boot_cache = full_cache[cache_key]
+            except Exception as e:
+                print(f"  CP covariate cache read error: {e}; using OLS intervals")
 
         def _fit_ols(dep_col, pdf):
             formula = f"{dep_col} ~ {' + '.join(usable)}"
@@ -525,172 +536,195 @@ class CpModelMixin:
             },
         }
 
-    def refresh_cp_covariate_bootstrap(self, n_bootstrap: int = 5000) -> None:
+    def refresh_cp_covariate_bootstrap(
+        self, n_bootstrap: int = 5000, only_if_stale: bool = False
+    ) -> None:
         """Run bootstrap resampling for CP covariate models and cache results.
 
         Runs for no_sleep and sleep variants and stores under keys:
         no_sleep, sleep.
         """
-        cache_path = storage.path_join(self.mergedfiles_path, "power_curves.parquet")
-        if not storage.path_exists(cache_path):
-            return
+        with _CP_BOOTSTRAP_LOCK:
+            if only_if_stale and hasattr(self, "_bootstrap_cache_is_stale"):
+                if not self._bootstrap_cache_is_stale():
+                    return
 
-        df = self.cycling.clone()
-        if df.is_empty():
-            return
-
-        ts_col = "timestamp"
-        if df[ts_col].dtype.time_zone is None:
-            df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
-        df = df.with_columns(
-            pl.col(ts_col).dt.convert_time_zone("America/Denver"),
-        )
-
-        # Cast source_file Categorical → String to match session_mesgs dtype.
-        curves = storage.read_parquet(cache_path).with_columns(
-            pl.col("source_file").cast(pl.String)
-        )
-        dur_cols = {
-            f"d_{d}": label for d, label in self.PEAK_REGRESSION_DURATIONS.items()
-        }
-        available_dur_cols = {
-            c: la for c, la in dur_cols.items() if c in curves.columns
-        }
-        if not available_dur_cols:
-            return
-
-        rides = (
-            df.select(["source_file", ts_col, "training_stress_score"])
-            .join(
-                curves.select(["source_file"] + list(available_dur_cols.keys())),
-                on="source_file",
-                how="inner",
+            cache_path = storage.path_join(
+                self.mergedfiles_path, "power_curves.parquet"
             )
-            .with_columns(
-                pl.col(ts_col).dt.truncate("1mo").dt.date().alias("month"),
+            if not storage.path_exists(cache_path):
+                return
+
+            df = self.cycling.clone()
+            if df.is_empty():
+                return
+
+            ts_col = "timestamp"
+            if df[ts_col].dtype.time_zone is None:
+                df = df.with_columns(pl.col(ts_col).dt.replace_time_zone("UTC"))
+            df = df.with_columns(
+                pl.col(ts_col).dt.convert_time_zone("America/Denver"),
             )
-        )
 
-        base_monthly = (
-            rides.group_by("month")
-            .agg(
-                [pl.col(c).max().alias(c) for c in available_dur_cols]
-                + [
-                    (pl.col("training_stress_score").sum() / 100.0).alias(
-                        "tss_per_100"
-                    ),
-                ]
+            # Cast source_file Categorical → String to match session_mesgs dtype.
+            curves = storage.read_parquet(cache_path).with_columns(
+                pl.col("source_file").cast(pl.String)
             )
-            .sort("month")
-        )
+            dur_cols = {
+                f"d_{d}": label for d, label in self.PEAK_REGRESSION_DURATIONS.items()
+            }
+            available_dur_cols = {
+                c: la for c, la in dur_cols.items() if c in curves.columns
+            }
+            if not available_dur_cols:
+                return
 
-        sleep_monthly = self._build_sleep_covariates(rides)
+            rides = (
+                df.select(["source_file", ts_col, "training_stress_score"])
+                .join(
+                    curves.select(["source_file"] + list(available_dur_cols.keys())),
+                    on="source_file",
+                    how="inner",
+                )
+                .with_columns(
+                    pl.col(ts_col).dt.truncate("1mo").dt.date().alias("month"),
+                )
+            )
 
-        out_path = storage.path_join(
-            self.mergedfiles_path, "cp_covariate_bootstrap.json"
-        )
-        full_boot_cache = (
-            storage.read_json(out_path) if storage.path_exists(out_path) else {}
-        )
+            base_monthly = (
+                rides.group_by("month")
+                .agg(
+                    [pl.col(c).max().alias(c) for c in available_dur_cols]
+                    + [
+                        (pl.col("training_stress_score").sum() / 100.0).alias(
+                            "tss_per_100"
+                        ),
+                    ]
+                )
+                .sort("month")
+            )
 
-        for with_sleep in (False, True):
-            cache_key = "sleep" if with_sleep else "no_sleep"
+            sleep_monthly = self._build_sleep_covariates(rides)
 
-            if with_sleep and sleep_monthly.is_empty():
-                continue
-
-            if with_sleep:
-                combined = base_monthly.join(sleep_monthly, on="month", how="inner")
+            out_path = storage.path_join(
+                self.mergedfiles_path, "cp_covariate_bootstrap.json"
+            )
+            if storage.path_exists(out_path):
+                try:
+                    full_boot_cache = storage.read_json(out_path)
+                except Exception:
+                    full_boot_cache = {}
             else:
-                combined = base_monthly.clone()
+                full_boot_cache = {}
 
-            combined = combined.drop_nulls()
+            updated_variants = []
+            for with_sleep in (False, True):
+                cache_key = "sleep" if with_sleep else "no_sleep"
 
-            if len(combined) < 5:
-                continue
+                if with_sleep and sleep_monthly.is_empty():
+                    continue
 
-            covariate_names = ["tss_per_100"]
-            if with_sleep:
-                covariate_names.append(self.SLEEP_COVARIATE_COL)
+                if with_sleep:
+                    combined = base_monthly.join(sleep_monthly, on="month", how="inner")
+                else:
+                    combined = base_monthly.clone()
 
-            usable = []
-            for c in covariate_names:
-                col = combined[c].drop_nulls()
-                if len(col) == len(combined) and col.std() > 0:
-                    usable.append(c)
-            if len(usable) < 1:
-                continue
+                combined = combined.drop_nulls()
 
-            # Mean-center covariates (mirrors cp_covariate_analysis)
-            for c in usable:
-                combined = combined.with_columns(
-                    (pl.col(c) - pl.col(c).mean()).alias(c)
-                )
+                if len(combined) < 5:
+                    continue
 
-            pdf = combined.select(
-                ["month"] + list(available_dur_cols.keys()) + usable
-            ).to_pandas()
+                covariate_names = ["tss_per_100"]
+                if with_sleep:
+                    covariate_names.append(self.SLEEP_COVARIATE_COL)
 
-            n = len(pdf)
-            rng = np.random.default_rng(42)
-            variant_cache = {}
+                usable = []
+                for c in covariate_names:
+                    col = combined[c].drop_nulls()
+                    if len(col) == len(combined) and col.std() > 0:
+                        usable.append(c)
+                if len(usable) < 1:
+                    continue
 
-            for dep_col in available_dur_cols:
-                y_full = pdf[dep_col].values.astype(float)
-
-                formula = f"{dep_col} ~ {' + '.join(usable)}"
-                model = smf.ols(formula, data=pdf).fit()
-                param_names = list(model.params.index)
-                n_params = len(param_names)
-
-                X_full = np.column_stack(
-                    [np.ones(n)] + [pdf[c].values.astype(float) for c in usable]
-                )
-
-                boot_coefs = np.empty((n_bootstrap, n_params))
-                for b in range(n_bootstrap):
-                    idx = rng.integers(0, n, size=n)
-                    try:
-                        boot_coefs[b] = np.linalg.lstsq(
-                            X_full[idx], y_full[idx], rcond=None
-                        )[0]
-                    except np.linalg.LinAlgError:
-                        boot_coefs[b] = np.nan
-
-                valid = ~np.isnan(boot_coefs).any(axis=1)
-                boot_coefs = boot_coefs[valid]
-
-                coefs = []
-                for i, name in enumerate(param_names):
-                    boot_dist = boot_coefs[:, i]
-                    ci_low, ci_high = (
-                        float(np.percentile(boot_dist, 2.5)),
-                        float(np.percentile(boot_dist, 97.5)),
-                    )
-                    point = float(model.params[name])
-                    p_boot = 2 * float(
-                        np.mean(boot_dist <= 0)
-                        if point >= 0
-                        else np.mean(boot_dist >= 0)
-                    )
-                    p_boot = min(p_boot, 1.0)
-
-                    coefs.append(
-                        {
-                            "name": "const" if name == "Intercept" else name,
-                            "coef_median": round(float(np.median(boot_dist)), 4),
-                            "coef_mean": round(float(np.mean(boot_dist)), 4),
-                            "pvalue_boot": round(p_boot, 4),
-                            "ci_low": round(ci_low, 4),
-                            "ci_high": round(ci_high, 4),
-                        }
+                # Mean-center covariates (mirrors cp_covariate_analysis)
+                for c in usable:
+                    combined = combined.with_columns(
+                        (pl.col(c) - pl.col(c).mean()).alias(c)
                     )
 
-                variant_cache[dep_col] = {
-                    "n_bootstrap": int(np.sum(valid)),
-                    "coefficients": coefs,
-                }
+                pdf = combined.select(
+                    ["month"] + list(available_dur_cols.keys()) + usable
+                ).to_pandas()
 
-            full_boot_cache[cache_key] = variant_cache
+                n = len(pdf)
+                rng = np.random.default_rng(42)
+                variant_cache = {}
 
-        storage.write_json(out_path, full_boot_cache)
+                for dep_col in available_dur_cols:
+                    y_full = pdf[dep_col].values.astype(float)
+
+                    formula = f"{dep_col} ~ {' + '.join(usable)}"
+                    model = smf.ols(formula, data=pdf).fit()
+                    param_names = list(model.params.index)
+                    n_params = len(param_names)
+
+                    X_full = np.column_stack(
+                        [np.ones(n)] + [pdf[c].values.astype(float) for c in usable]
+                    )
+
+                    boot_coefs = np.empty((n_bootstrap, n_params))
+                    for b in range(n_bootstrap):
+                        idx = rng.integers(0, n, size=n)
+                        try:
+                            boot_coefs[b] = np.linalg.lstsq(
+                                X_full[idx], y_full[idx], rcond=None
+                            )[0]
+                        except np.linalg.LinAlgError:
+                            boot_coefs[b] = np.nan
+
+                    valid = ~np.isnan(boot_coefs).any(axis=1)
+                    boot_coefs = boot_coefs[valid]
+
+                    coefs = []
+                    for i, name in enumerate(param_names):
+                        boot_dist = boot_coefs[:, i]
+                        ci_low, ci_high = (
+                            float(np.percentile(boot_dist, 2.5)),
+                            float(np.percentile(boot_dist, 97.5)),
+                        )
+                        point = float(model.params[name])
+                        p_boot = 2 * float(
+                            np.mean(boot_dist <= 0)
+                            if point >= 0
+                            else np.mean(boot_dist >= 0)
+                        )
+                        p_boot = min(p_boot, 1.0)
+
+                        coefs.append(
+                            {
+                                "name": "const" if name == "Intercept" else name,
+                                "coef_median": round(float(np.median(boot_dist)), 4),
+                                "coef_mean": round(float(np.mean(boot_dist)), 4),
+                                "pvalue_boot": round(p_boot, 4),
+                                "ci_low": round(ci_low, 4),
+                                "ci_high": round(ci_high, 4),
+                            }
+                        )
+
+                    variant_cache[dep_col] = {
+                        "n_bootstrap": int(np.sum(valid)),
+                        "coefficients": coefs,
+                    }
+
+                full_boot_cache[cache_key] = variant_cache
+                updated_variants.append(f"{cache_key}={len(variant_cache)}")
+
+            if not updated_variants:
+                print("  CP covariates update skipped: not enough monthly data")
+                return
+
+            storage.write_json(out_path, full_boot_cache)
+            variants_text = ", ".join(updated_variants)
+            print(
+                f"  CP covariates updated ({variants_text}, n_bootstrap={n_bootstrap})"
+            )

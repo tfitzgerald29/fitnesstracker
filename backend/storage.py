@@ -252,6 +252,14 @@ class StorageConfig:
         with self._cache_lock:
             self._compute_cache[key] = value
 
+    def delete_compute_cache_prefix(self, prefix: str) -> int:
+        """Delete compute-cache entries whose key starts with *prefix*."""
+        with self._cache_lock:
+            keys = [k for k in self._compute_cache if k.startswith(prefix)]
+            for k in keys:
+                del self._compute_cache[k]
+            return len(keys)
+
     def is_cached(self, path: str) -> bool:
         """Return True if the full DataFrame for *path* is already in the parquet cache."""
         with self._cache_lock:

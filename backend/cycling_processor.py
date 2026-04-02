@@ -31,7 +31,6 @@ class CyclingProcessor(
         self.mergedfiles_path = mergedfiles_path or storage.merged_path(user_id)
         self.cycling = self._load_cycling_sessions()
         self._update_power_curve_cache()
-        self._update_bootstrap_cache()
 
     # ── Data loading ──────────────────────────────────────────────────────
 
@@ -121,26 +120,42 @@ class CyclingProcessor(
         del records, rows, new_cache, existing_cache
         gc.collect()
 
-    def _update_bootstrap_cache(self):
-        """Refresh the CP covariate bootstrap cache if data has changed."""
+    def _bootstrap_cache_is_stale(self) -> bool:
+        """Return True when CP covariate bootstrap cache should be refreshed."""
         boot_path = storage.path_join(
             self.mergedfiles_path, "cp_covariate_bootstrap.json"
         )
         curves_path = storage.path_join(self.mergedfiles_path, "power_curves.parquet")
 
-        # If power_curves.parquet is already warm in the parquet cache, the
-        # bootstrap staleness check was already done this session — skip the
-        # S3 path_exists / path_mtime API calls.
-        if storage.is_cached(curves_path):
+        if not storage.path_exists(curves_path):
+            return False
+
+        if not storage.path_exists(boot_path):
+            return True
+
+        return storage.path_mtime(boot_path) < storage.path_mtime(curves_path)
+
+    def _update_bootstrap_cache(self, n_bootstrap: int = 5000) -> None:
+        """Refresh the CP covariate bootstrap cache if data has changed."""
+        if not self._bootstrap_cache_is_stale():
             return
 
-        # Re-run bootstrap if cache is missing or older than power curves
-        if storage.path_exists(curves_path) and (
-            not storage.path_exists(boot_path)
-            or storage.path_mtime(boot_path) < storage.path_mtime(curves_path)
-        ):
-            print("  Refreshing CP covariate bootstrap cache...")
-            self.refresh_cp_covariate_bootstrap()
+        print("  Refreshing CP covariate bootstrap cache...")
+        self.refresh_cp_covariate_bootstrap(
+            n_bootstrap=n_bootstrap,
+            only_if_stale=True,
+        )
+
+    def warm_startup_caches(self, n_bootstrap: int = 5000) -> None:
+        """Warm expensive cycling caches before serving dashboard requests."""
+        cache_prefix = f"{self.mergedfiles_path}:cp_over_time:"
+        storage.delete_compute_cache_prefix(cache_prefix)
+
+        # Keep power curves in sync with newly ingested rides first.
+        self._update_power_curve_cache()
+
+        # Then rebuild bootstrap cache only when upstream power curves changed.
+        self._update_bootstrap_cache(n_bootstrap=n_bootstrap)
 
     # ── Ride listing & summary ────────────────────────────────────────────
 

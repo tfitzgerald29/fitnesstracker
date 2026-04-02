@@ -3,7 +3,7 @@ Sleep data ingestion and read-only query layer for Garmin sleep exports.
 
 Ingestion pipeline (local mode only, mirrors FitFileProcessor):
     ~/Downloads/*_sleepData.json  →  copy to sleepdata/
-    ~/Downloads/Sleep.csv         →  parse one-night key/value export
+    ~/Downloads/*sleep*.csv       →  parse key/value exports (one row per file)
     then merge both sources into mergedfiles/sleep.parquet
 
 In S3 mode, ingestion is not run at startup — files are expected to already
@@ -38,8 +38,6 @@ class SleepProcessor:
         self.wellness_path = storage.wellness_path(user_id)
         self.mergedfiles_path = storage.merged_path(user_id)
         self.sleep = self._load_sleep_data()
-
-    CSV_FILENAME = "Sleep.csv"
 
     CSV_KEY_MAP: dict[str, list[str]] = {
         "calendar_date": ["Calendar Date", "Date"],
@@ -150,15 +148,18 @@ class SleepProcessor:
 
         return new_files
 
-    def _find_sleep_csv(self) -> str | None:
-        """Return full path to Sleep.csv in source_folder if present."""
+    def _find_sleep_csvs(self) -> list[str]:
+        """Return sorted list of sleep-like CSV paths from source_folder."""
         if not os.path.isdir(self.source_folder):
-            return None
+            return []
 
-        csv_path = os.path.join(self.source_folder, self.CSV_FILENAME)
-        if os.path.isfile(csv_path):
-            return csv_path
-        return None
+        return sorted(
+            e.path
+            for e in os.scandir(self.source_folder)
+            if e.is_file()
+            and e.name.lower().endswith(".csv")
+            and "sleep" in e.name.lower()
+        )
 
     @staticmethod
     def _norm_key(key: str) -> str:
@@ -256,7 +257,7 @@ class SleepProcessor:
         return df.select(list(SLEEP.keys()))
 
     def _parse_sleep_csv(self, csv_path: str) -> dict | None:
-        """Parse Sleep.csv key/value rows into one canonical sleep row dict."""
+        """Parse one sleep-like CSV key/value file into a canonical sleep row dict."""
         raw_data = {}
 
         try:
@@ -345,7 +346,7 @@ class SleepProcessor:
         print("=" * 60)
 
         print(
-            f"\n[Step 1] Scanning {self.source_folder} for *_sleepData.json and Sleep.csv ..."
+            f"\n[Step 1] Scanning {self.source_folder} for *_sleepData.json and *sleep*.csv ..."
         )
         new_files = self.ingest_from_downloads()
 
@@ -376,7 +377,7 @@ class SleepProcessor:
         }
 
     def _merge_to_parquet(self) -> dict[str, int]:
-        """Parse sleep JSON + optional Sleep.csv and update sleep.parquet.
+        """Parse sleep JSON + optional sleep-like CSV files and update sleep.parquet.
 
         Deduplicates on calendar_date so re-running is always safe.
         JSON is authoritative when JSON and CSV contain the same date.
@@ -389,19 +390,31 @@ class SleepProcessor:
         json_df = self._parse_all_json()
 
         csv_df = pl.DataFrame()
-        csv_path = self._find_sleep_csv()
-        if csv_path is None:
-            print(
-                f"  Sleep merge: {self.CSV_FILENAME} not found in {self.source_folder}"
-            )
+        csv_paths = self._find_sleep_csvs()
+        if not csv_paths:
+            print(f"  Sleep merge: no *sleep*.csv files found in {self.source_folder}")
         else:
-            row = self._parse_sleep_csv(csv_path)
-            if row is None:
-                print(
-                    f"  Sleep merge: could not parse {self.CSV_FILENAME}, skipping CSV ingest"
-                )
+            csv_rows = []
+            for csv_path in csv_paths:
+                row = self._parse_sleep_csv(csv_path)
+                if row is None:
+                    print(
+                        f"  Sleep merge: could not parse {os.path.basename(csv_path)}, skipping"
+                    )
+                    continue
+                csv_rows.append(row)
+
+            if not csv_rows:
+                print("  Sleep merge: no parseable sleep CSV rows found")
             else:
-                csv_df = self._coerce_sleep_schema(pl.DataFrame([row], strict=False))
+                csv_df = self._coerce_sleep_schema(pl.DataFrame(csv_rows, strict=False))
+                before = len(csv_df)
+                csv_df = csv_df.unique(subset=["calendar_date"], keep="last")
+                dropped_dupe_dates = before - len(csv_df)
+                if dropped_dupe_dates > 0:
+                    print(
+                        f"  Sleep merge: skipped {dropped_dupe_dates} duplicate CSV row(s) by calendar_date"
+                    )
 
         if not csv_df.is_empty() and not json_df.is_empty():
             json_dates = json_df.select("calendar_date").drop_nulls().unique()
