@@ -31,40 +31,47 @@ def cycling_tab():
                     "background": "transparent",
                 },
             ),
-            html.Div(id="overview-content"),
-            html.Div(id="training-load-content"),
-            html.Div(id="cp-content"),
-            html.Div(id="rides-content"),
-            html.Div(id="covariate-content"),
+            html.Div(id="overview-content", children=cycling_overview_layout()),
+            html.Div(
+                id="training-load-content",
+                children=cycling_training_load_layout(),
+                style={"display": "none"},
+            ),
+            html.Div(
+                id="cp-content",
+                children=cycling_cp_layout(),
+                style={"display": "none"},
+            ),
+            html.Div(
+                id="rides-content",
+                children=cycling_rides_layout(),
+                style={"display": "none"},
+            ),
+            html.Div(
+                id="covariate-content",
+                children=cycling_covariate_layout(),
+                style={"display": "none"},
+            ),
         ]
     )
 
 
 @callback(
-    Output("overview-content", "children"),
     Output("overview-content", "style"),
-    Output("training-load-content", "children"),
     Output("training-load-content", "style"),
-    Output("cp-content", "children"),
     Output("cp-content", "style"),
-    Output("rides-content", "children"),
     Output("rides-content", "style"),
-    Output("covariate-content", "children"),
     Output("covariate-content", "style"),
     Input("cycling-subtabs", "value"),
 )
 def render_cycling_subtab(subtab):
     hide = {"display": "none"}
     show = {"display": "block"}
+
     return (
-        cycling_overview_layout() if subtab == "overview" else None,
         show if subtab == "overview" else hide,
-        cycling_training_load_layout() if subtab == "training-load" else None,
         show if subtab == "training-load" else hide,
-        cycling_cp_layout() if subtab == "cp" else None,
         show if subtab == "cp" else hide,
-        cycling_rides_layout() if subtab == "rides" else None,
         show if subtab == "rides" else hide,
-        cycling_covariate_layout() if subtab == "covariate" else None,
         show if subtab == "covariate" else hide,
     )

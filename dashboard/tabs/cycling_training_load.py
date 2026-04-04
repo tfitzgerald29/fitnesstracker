@@ -652,10 +652,13 @@ def update_apply_forecast_button_style(forecast_rows, applied_overrides):
 )
 def update_training_load(date_range, show_forecast, tss_overrides):
     start_date = None
-    if date_range != "all":
-        months = int(date_range)
-        d = date.today()
-        start_date = (d.replace(day=1) - timedelta(days=months * 30)).isoformat()
+    if date_range and date_range != "all":
+        try:
+            months = int(date_range)
+            d = date.today()
+            start_date = (d.replace(day=1) - timedelta(days=months * 30)).isoformat()
+        except (TypeError, ValueError):
+            start_date = None
 
     cp = CyclingProcessor(user_id=get_user_id())
     sanitized_overrides = _sanitize_tss_overrides(tss_overrides or {})
